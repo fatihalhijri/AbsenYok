@@ -85,6 +85,12 @@ export function fromDbDate(date: Date): string {
   return dayjs.utc(date).format(DATE_FORMAT);
 }
 
+/** Geser tanggal kalender sejumlah hari (boleh negatif). `addDays('2026-10-31', 1)` → `'2026-11-01'`. */
+export function addDays(dateStr: string, days: number): string {
+  assertDateString(dateStr);
+  return dayjs.utc(dateStr, DATE_FORMAT, true).add(days, 'day').format(DATE_FORMAT);
+}
+
 /** Tanggal lokal hari ini dalam bentuk nilai kolom `@db.Date`. */
 export function todayDate(): Date {
   return toDbDate(todayDateString());

@@ -8,6 +8,7 @@ import { setAppTimezone } from '@/common/utils/date.util';
 import { AppConfigModule, AppConfigService } from '@/config/app.config';
 import { buildLoggerParams } from '@/config/logger.config';
 import { HealthModule } from '@/modules/health/health.module';
+import { PrismaModule } from '@/prisma/prisma.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { HealthModule } from '@/modules/health/health.module';
       inject: [AppConfigService],
       useFactory: buildLoggerParams,
     }),
+    PrismaModule,
     HealthModule,
   ],
   providers: [

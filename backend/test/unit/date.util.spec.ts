@@ -1,5 +1,6 @@
 import {
   DEFAULT_TIMEZONE,
+  addDays,
   combineDateAndTime,
   diffMinutes,
   fromDbDate,
@@ -81,6 +82,22 @@ describe('date.util (APP_TIMEZONE = Asia/Jakarta, UTC+7)', () => {
         expect(() => toDbDate(value)).toThrow(RangeError);
       },
     );
+  });
+
+  describe('addDays()', () => {
+    it.each([
+      ['2026-10-31', 1, '2026-11-01'],
+      ['2026-12-31', 1, '2027-01-01'],
+      ['2026-03-01', -1, '2026-02-28'],
+      ['2028-02-28', 1, '2028-02-29'],
+      ['2026-10-12', -30, '2026-09-12'],
+    ])('%s %+d hari → %s', (date, days, expected) => {
+      expect(addDays(date, days)).toBe(expected);
+    });
+
+    it('menolak tanggal tidak valid', () => {
+      expect(() => addDays('2026-02-30', 1)).toThrow(RangeError);
+    });
   });
 
   describe('combineDateAndTime() — jam lokal Jakarta → UTC', () => {

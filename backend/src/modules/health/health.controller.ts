@@ -20,10 +20,15 @@ export class HealthController {
   @ApiOkResponse({
     description: 'Layanan sehat',
     schema: {
-      example: { success: true, data: { status: 'ok', time: '2026-10-11T01:05:22.000Z' } },
+      example: {
+        success: true,
+        data: { status: 'ok', db: 'up', time: '2026-10-11T01:05:22.000Z' },
+      },
     },
   })
-  @ApiServiceUnavailableResponse({ description: 'Ada dependensi yang tidak sehat' })
+  @ApiServiceUnavailableResponse({
+    description: 'Database atau dependensi lain tidak sehat (kode SERVICE_UNAVAILABLE)',
+  })
   check(): Promise<HealthStatus> {
     return this.healthService.check();
   }

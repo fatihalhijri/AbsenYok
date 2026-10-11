@@ -11,6 +11,16 @@ import { Public } from '@/common/decorators/public.decorator';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
 import { BusinessException } from '@/common/exceptions/business.exception';
 import { paginate } from '@/common/utils/paginate.util';
+import { PrismaService } from '@/prisma/prisma.service';
+
+/** Stub Prisma: e2e lapisan HTTP tidak membutuhkan MySQL yang menyala. */
+const prismaStub = {
+  $queryRaw: jest.fn(),
+  $connect: jest.fn(),
+  $disconnect: jest.fn(),
+  onModuleInit: jest.fn(),
+  onModuleDestroy: jest.fn(),
+};
 
 /** Controller khusus test untuk memverifikasi lapisan common (pipe, interceptor, filter). */
 @Controller('e2e-probe')
@@ -46,7 +56,10 @@ describe('AbsenYok API (e2e)', () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [ProbeController],
-    }).compile();
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prismaStub)
+      .compile();
 
     app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
     app.useLogger(app.get(Logger));
@@ -60,13 +73,29 @@ describe('AbsenYok API (e2e)', () => {
   });
 
   describe('Health', () => {
-    it.each(['/api/v1/health', '/health'])('GET %s → status ok', async (path) => {
+    beforeEach(() => prismaStub.$queryRaw.mockResolvedValue([{ 1: 1 }]));
+    afterEach(() => prismaStub.$queryRaw.mockReset());
+
+    it.each(['/api/v1/health', '/health'])('GET %s → status ok, db up', async (path) => {
       const res = await request(http).get(path).expect(200);
 
       expect(res.body).toEqual({
         success: true,
-        data: { status: 'ok', time: expect.any(String) },
+        data: { status: 'ok', db: 'up', time: expect.any(String) },
       });
+    });
+
+    it('database mati → 503 SERVICE_UNAVAILABLE tanpa membocorkan detail koneksi', async () => {
+      prismaStub.$queryRaw.mockRejectedValue(new Error('connect ECONNREFUSED 127.0.0.1:3306'));
+
+      const res = await request(http).get('/api/v1/health').expect(503);
+
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+      expect(res.body.error.details.error).toEqual({
+        db: { status: 'down', message: 'Database tidak dapat dihubungi' },
+      });
+      expect(JSON.stringify(res.body)).not.toContain('127.0.0.1');
     });
   });
 
