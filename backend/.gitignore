@@ -1,0 +1,17 @@
+# Dependencies & build
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Prisma Client hasil generate
+src/generated/
+
+# Runtime
+uploads/
+*.log

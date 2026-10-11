@@ -1,0 +1,317 @@
+// =============================================================
+//  AbsenYok — Prisma Schema (MySQL 8)
+//  Konvensi: UUID Char(36), semua DateTime disimpan UTC,
+//  kolom @db.Date berisi tanggal lokal APP_TIMEZONE.
+// =============================================================
+
+// Prisma ORM v7+: URL koneksi ada di prisma.config.ts,
+// PrismaClient memakai driver adapter @prisma/adapter-mariadb (kompatibel MySQL).
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs" // NestJS default CommonJS
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------------------------- ENUMS ----------------------------
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  SICK
+  PERMIT
+  LEAVE
+}
+
+enum AttendanceMethod {
+  KIOSK_QR
+  PERSONAL_QR
+  MANUAL
+}
+
+enum LeaveType {
+  SICK
+  PERMIT
+  ANNUAL
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ScanType {
+  KIOSK
+  PERSONAL
+}
+
+// --------------------------- MASTER ----------------------------
+
+model Department {
+  id        String   @id @default(uuid()) @db.Char(36)
+  code      String   @unique @db.VarChar(20)
+  name      String   @unique @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@map("departments")
+}
+
+model Shift {
+  id                   String   @id @default(uuid()) @db.Char(36)
+  name                 String   @unique @db.VarChar(50)
+  startTime            String   @db.Char(5) // "08:00"
+  endTime              String   @db.Char(5) // "17:00"
+  lateToleranceMinutes Int      @default(15)
+  checkInOpenMinutes   Int      @default(60)
+  workDays             String   @default("1,2,3,4,5") @db.VarChar(20) // ISO weekday 1=Senin..7=Minggu
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  users User[]
+
+  @@map("shifts")
+}
+
+model Location {
+  id           String   @id @default(uuid()) @db.Char(36)
+  name         String   @db.VarChar(100)
+  address      String?  @db.VarChar(255)
+  latitude     Decimal  @db.Decimal(10, 7)
+  longitude    Decimal  @db.Decimal(10, 7)
+  radiusMeters Int      @default(100)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  kiosks      Kiosk[]
+  users       User[]
+  attendances Attendance[]
+
+  @@map("locations")
+}
+
+model Kiosk {
+  id                String    @id @default(uuid()) @db.Char(36)
+  name              String    @db.VarChar(100)
+  locationId        String    @db.Char(36)
+  secret            String    @db.VarChar(128) // JANGAN pernah dikirim ke client
+  qrIntervalSeconds Int       @default(30)
+  isActive          Boolean   @default(true)
+  lastSeenAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  location    Location             @relation(fields: [locationId], references: [id])
+  attendances Attendance[]
+  scanLogs    AttendanceScanLog[]
+
+  @@index([locationId])
+  @@map("kiosks")
+}
+
+model Holiday {
+  id        String   @id @default(uuid()) @db.Char(36)
+  date      DateTime @unique @db.Date
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("holidays")
+}
+
+model Setting {
+  key       String   @id @db.VarChar(100)
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ---------------------------- USERS ----------------------------
+
+model User {
+  id                  String    @id @default(uuid()) @db.Char(36)
+  employeeCode        String    @unique @db.VarChar(30) // NIP / NIK karyawan
+  name                String    @db.VarChar(100)
+  email               String    @unique @db.VarChar(150)
+  phone               String?   @db.VarChar(20)
+  position            String?   @db.VarChar(100)
+  passwordHash        String    @db.VarChar(255)
+  role                Role      @default(EMPLOYEE)
+  isActive            Boolean   @default(true)
+  avatarUrl           String?   @db.VarChar(255)
+  boundDeviceId       String?   @db.VarChar(100)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  departmentId        String?   @db.Char(36)
+  shiftId             String?   @db.Char(36)
+  locationId          String?   @db.Char(36) // lokasi kerja default
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  deletedAt           DateTime?
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  shift      Shift?      @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  location   Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  refreshTokens      RefreshToken[]
+  attendances        Attendance[]        @relation("AttendanceOwner")
+  scannedAttendances Attendance[]        @relation("AttendanceScanner")
+  leaveRequests      LeaveRequest[]      @relation("LeaveRequester")
+  reviewedLeaves     LeaveRequest[]      @relation("LeaveReviewer")
+  scanLogs           AttendanceScanLog[]
+  auditLogs          AuditLog[]
+
+  @@index([departmentId])
+  @@index([shiftId])
+  @@index([role, isActive])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Char(36)
+  userId     String    @db.Char(36)
+  tokenHash  String    @unique @db.Char(64) // SHA-256 hex
+  familyId   String    @db.Char(36) // untuk deteksi reuse
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?   @db.Char(36)
+  userAgent  String?   @db.VarChar(255)
+  ipAddress  String?   @db.VarChar(45)
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// -------------------------- ATTENDANCE -------------------------
+
+model Attendance {
+  id                String            @id @default(uuid()) @db.Char(36)
+  userId            String            @db.Char(36)
+  date              DateTime          @db.Date
+  status            AttendanceStatus
+  checkInAt         DateTime?
+  checkOutAt        DateTime?
+  checkInMethod     AttendanceMethod?
+  checkOutMethod    AttendanceMethod?
+  checkInLat        Decimal?          @db.Decimal(10, 7)
+  checkInLng        Decimal?          @db.Decimal(10, 7)
+  checkOutLat       Decimal?          @db.Decimal(10, 7)
+  checkOutLng       Decimal?          @db.Decimal(10, 7)
+  lateMinutes       Int               @default(0)
+  earlyLeaveMinutes Int               @default(0)
+  workMinutes       Int               @default(0)
+  shiftSnapshot     Json?
+  note              String?           @db.VarChar(255)
+  kioskId           String?           @db.Char(36)
+  locationId        String?           @db.Char(36)
+  scannedById       String?           @db.Char(36) // petugas (mode QR personal)
+  leaveRequestId    String?           @db.Char(36)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user         User          @relation("AttendanceOwner", fields: [userId], references: [id])
+  scannedBy    User?         @relation("AttendanceScanner", fields: [scannedById], references: [id], onDelete: SetNull)
+  kiosk        Kiosk?        @relation(fields: [kioskId], references: [id], onDelete: SetNull)
+  location     Location?     @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, date])
+  @@index([date, status])
+  @@index([kioskId])
+  @@index([locationId])
+  @@map("attendances")
+}
+
+model AttendanceScanLog {
+  id        String   @id @default(uuid()) @db.Char(36)
+  userId    String?  @db.Char(36)
+  kioskId   String?  @db.Char(36)
+  scanType  ScanType
+  success   Boolean
+  errorCode String?  @db.VarChar(50)
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+  accuracy  Float?
+  distance  Float? // meter dari titik lokasi
+  deviceId  String?  @db.VarChar(100)
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  kiosk Kiosk? @relation(fields: [kioskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([success, createdAt])
+  @@map("attendance_scan_logs")
+}
+
+// ----------------------------- LEAVE ---------------------------
+
+model LeaveRequest {
+  id            String      @id @default(uuid()) @db.Char(36)
+  userId        String      @db.Char(36)
+  type          LeaveType
+  startDate     DateTime    @db.Date
+  endDate       DateTime    @db.Date
+  totalDays     Int // jumlah hari kerja dalam rentang
+  reason        String      @db.Text
+  attachmentUrl String?     @db.VarChar(255)
+  status        LeaveStatus @default(PENDING)
+  reviewedById  String?     @db.Char(36)
+  reviewedAt    DateTime?
+  reviewNote    String?     @db.VarChar(255)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  user        User         @relation("LeaveRequester", fields: [userId], references: [id])
+  reviewedBy  User?        @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  attendances Attendance[]
+
+  @@index([userId, status])
+  @@index([status, startDate])
+  @@map("leave_requests")
+}
+
+// ----------------------------- AUDIT ---------------------------
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Char(36)
+  actorId   String?  @db.Char(36)
+  action    String   @db.VarChar(50)
+  entity    String   @db.VarChar(50)
+  entityId  String?  @db.VarChar(36)
+  metadata  Json? // { before, after, reason, ... }
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

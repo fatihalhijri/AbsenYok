@@ -1,0 +1,71 @@
+# Jalankan database saja untuk development:
+#   docker compose up -d mysql adminer
+# Jalankan semua (setelah Dockerfile backend & frontend dibuat di prompt 10):
+#   docker compose --profile app up -d --build
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: absenyok-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_secret_change_me
+      MYSQL_DATABASE: absenyok
+      MYSQL_USER: absenyok
+      MYSQL_PASSWORD: absenyok_secret
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_secret_change_me"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  adminer:
+    image: adminer:latest
+    container_name: absenyok-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+
+  backend:
+    profiles: ["app"]
+    build: ./backend
+    container_name: absenyok-backend
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: mysql://absenyok:absenyok_secret@mysql:3306/absenyok
+    ports:
+      - "4000:4000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: ./frontend
+      args:
+        BACKEND_INTERNAL_URL: http://backend:4000
+    container_name: absenyok-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  uploads:

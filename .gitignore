@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+.env
+.env.local
+.env.*.local
+uploads/
+*.log
+.DS_Store
+public/sw.js
+public/sw.js.map
+public/swe-worker-*.js
