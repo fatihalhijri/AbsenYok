@@ -1,8 +1,12 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import request from 'supertest';
+import type { App } from 'supertest/types';
 import { Test } from '@nestjs/testing';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from '@/app.module';
 import { configureApp } from '@/app.setup';
+import type { Role } from '@/common/constants/roles';
+import { hashPassword } from '@/common/utils/password.util';
 import type { PrismaService } from '@/prisma/prisma.service';
 import { assertTestDatabaseUrl } from './test-db';
 
@@ -56,4 +60,49 @@ export function expectNoSecrets(body: unknown): void {
   for (const secret of ['passwordHash', 'tokenHash', '$argon2', 'boundDeviceId', 'secret']) {
     expect(json).not.toContain(secret);
   }
+}
+
+export const E2E_PASSWORD = 'Rahasia@123';
+
+/** Buat user langsung di database (fixture). */
+export async function createUserFixture(
+  prisma: PrismaService,
+  data: { employeeCode: string; email: string; role: Role; isActive?: boolean; shiftId?: string },
+) {
+  return prisma.user.create({
+    data: {
+      ...data,
+      name: `User ${data.employeeCode}`,
+      passwordHash: await hashPassword(E2E_PASSWORD),
+    },
+  });
+}
+
+/** Penghitung IP unik per file test — throttle login dihitung per IP. */
+export function createIpSequence(prefix = '203.0.113') {
+  let seq = 0;
+  return () => `${prefix}.${(seq = (seq % 250) + 1)}`;
+}
+
+/** Login dan kembalikan access token. */
+export async function loginToken(
+  http: App,
+  email: string,
+  ip: string,
+  password = E2E_PASSWORD,
+): Promise<string> {
+  const res = await request(http)
+    .post('/api/v1/auth/login')
+    .set('X-Forwarded-For', ip)
+    .send({ email, password });
+  if (res.status !== 200) {
+    throw new Error(`Login ${email} gagal: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+  return (res.body as { data: { accessToken: string } }).data.accessToken;
+}
+
+/** Daftar field dari `error.details` respons validasi (urut abjad). */
+export function errorFields(body: unknown): string[] {
+  const details = (body as { error?: { details?: { field: string }[] } }).error?.details ?? [];
+  return details.map((detail) => detail.field).sort();
 }

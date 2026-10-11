@@ -1,3 +1,5 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { config } from 'dotenv';
 
 const TEST_DB_SUFFIX = '_test';
@@ -18,11 +20,13 @@ export function assertTestDatabaseUrl(databaseUrl: string | undefined): void {
   }
 }
 
-/** Muat env (.env lalu .env.example) dan arahkan DATABASE_URL ke database test. */
+/** Muat env (.env lalu .env.example), arahkan DATABASE_URL ke database test & UPLOAD_DIR ke temp. */
 export function loadTestEnv(): void {
   process.env.NODE_ENV = 'test';
   config({ path: ['.env', '.env.example'], quiet: true });
   if (process.env.DATABASE_URL) {
     process.env.DATABASE_URL = toTestDatabaseUrl(process.env.DATABASE_URL);
   }
+  // File upload e2e ke folder temp agar tidak mengotori ./uploads.
+  process.env.UPLOAD_DIR = join(tmpdir(), 'absenyok-e2e-uploads');
 }

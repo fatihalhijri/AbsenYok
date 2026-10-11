@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { API_PREFIX, SWAGGER_PATH } from '@/common/constants/app.constants';
 import { AppConfigService } from '@/config/app.config';
+import { registerStaticFiles } from '@/config/static-files.config';
 import { HEALTH_PREFIX_EXCLUDES } from '@/modules/health/health.constants';
 
 /**
@@ -28,6 +29,7 @@ export function configureApp(app: NestExpressApplication): void {
     }),
   );
   app.use(cookieParser());
+  registerStaticFiles(app, config);
   app.enableCors({
     origin: config.get('CORS_ORIGIN'),
     credentials: true,

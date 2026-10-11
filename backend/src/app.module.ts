@@ -14,7 +14,13 @@ import { AppConfigModule, AppConfigService } from '@/config/app.config';
 import { buildLoggerParams } from '@/config/logger.config';
 import { AuditLogsModule } from '@/modules/audit-logs/audit-logs.module';
 import { AuthModule } from '@/modules/auth/auth.module';
+import { DepartmentsModule } from '@/modules/departments/departments.module';
 import { HealthModule } from '@/modules/health/health.module';
+import { HolidaysModule } from '@/modules/holidays/holidays.module';
+import { LocationsModule } from '@/modules/locations/locations.module';
+import { SettingsModule } from '@/modules/settings/settings.module';
+import { ShiftsModule } from '@/modules/shifts/shifts.module';
+import { UsersModule } from '@/modules/users/users.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 
 @Module({
@@ -41,6 +47,12 @@ import { PrismaModule } from '@/prisma/prisma.module';
     PrismaModule,
     AuditLogsModule,
     AuthModule,
+    SettingsModule,
+    UsersModule,
+    DepartmentsModule,
+    ShiftsModule,
+    LocationsModule,
+    HolidaysModule,
     HealthModule,
   ],
   providers: [
