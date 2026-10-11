@@ -10,7 +10,7 @@
 import 'dotenv/config';
 import { randomBytes } from 'node:crypto';
 import { fakerID_ID as faker } from '@faker-js/faker';
-import * as argon2 from 'argon2';
+import { PASSWORD_POLICY_REGEX } from '@/common/constants/password-policy';
 import {
   addDays,
   combineDateAndTime,
@@ -20,6 +20,7 @@ import {
   toDbDate,
   todayDateString,
 } from '@/common/utils/date.util';
+import { hashPassword } from '@/common/utils/password.util';
 import { validateEnv } from '@/config/env.schema';
 import {
   AttendanceMethod,
@@ -44,7 +45,6 @@ const EMPLOYEE_PASSWORD = 'Karyawan@123';
 const EMAIL_DOMAIN = 'absenyok.id';
 const FAKER_SEED = 2026;
 const HISTORY_DAYS = 30;
-const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 // ------------------------------- DATA MASTER -------------------------------
 
@@ -107,8 +107,6 @@ const FIXED_HOLIDAYS = [
 ];
 
 // -------------------------------- HELPERS ----------------------------------
-
-const hashPassword = (password: string) => argon2.hash(password, { type: argon2.argon2id });
 
 const workDaysOf = (shift: ShiftSeed): number[] => shift.workDays.split(',').map(Number);
 
@@ -252,7 +250,7 @@ async function seedUsers(
   shiftIds: Map<string, string>,
 ): Promise<SeededUsers> {
   const adminPassword = env.SEED_DEFAULT_PASSWORD;
-  if (!adminPassword || !PASSWORD_POLICY.test(adminPassword)) {
+  if (!adminPassword || !PASSWORD_POLICY_REGEX.test(adminPassword)) {
     throw new Error(
       'SEED_DEFAULT_PASSWORD wajib diisi: minimal 8 karakter dengan huruf besar, huruf kecil, dan angka',
     );

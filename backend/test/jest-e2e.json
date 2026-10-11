@@ -11,5 +11,7 @@
     "^@/(.*)$": "<rootDir>/src/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1"
   },
-  "setupFiles": ["<rootDir>/test/e2e/setup-env.ts"]
+  "globalSetup": "<rootDir>/test/e2e/global-setup.ts",
+  "setupFiles": ["<rootDir>/test/e2e/setup-env.ts"],
+  "testTimeout": 30000
 }

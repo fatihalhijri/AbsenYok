@@ -1,5 +1,4 @@
-import { config } from 'dotenv';
+import { loadTestEnv } from './test-db';
 
-// Env test: pakai .env lokal bila ada, sisanya diisi dari .env.example (tidak menimpa).
-process.env.NODE_ENV = 'test';
-config({ path: ['.env', '.env.example'], quiet: true });
+// Env test: .env lokal (sisanya dari .env.example) dengan DATABASE_URL → database `<nama>_test`.
+loadTestEnv();
