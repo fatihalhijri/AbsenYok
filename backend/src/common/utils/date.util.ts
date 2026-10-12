@@ -71,6 +71,11 @@ export function toTzDateString(instant: Instant): string {
   return toTz(instant).format(DATE_FORMAT);
 }
 
+/** Jam lokal `APP_TIMEZONE` berformat `HH:mm`, mis. untuk pesan "Absen masuk pukul 07:52". */
+export function formatLocalTime(instant: Instant): string {
+  return toTz(instant).format(TIME_FORMAT);
+}
+
 /**
  * Tanggal kalender → `Date` UTC 00:00 untuk kolom `@db.Date`.
  * `toDbDate('2026-10-12')` → `2026-10-12T00:00:00.000Z`.

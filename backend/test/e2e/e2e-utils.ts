@@ -1,7 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import type { App } from 'supertest/types';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from '@/app.module';
 import { configureApp } from '@/app.setup';
@@ -12,12 +12,17 @@ import { assertTestDatabaseUrl } from './test-db';
 
 type ControllerClass = new (...args: never[]) => unknown;
 
-/** Aplikasi e2e identik dengan produksi (main.ts) plus controller khusus test. */
-export async function createE2eApp(controllers: ControllerClass[] = []) {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-    controllers,
-  }).compile();
+/**
+ * Aplikasi e2e identik dengan produksi (main.ts) plus controller khusus test.
+ * `configure` dapat dipakai untuk override provider (mis. ClockService palsu).
+ */
+export async function createE2eApp(
+  controllers: ControllerClass[] = [],
+  configure: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+) {
+  const moduleRef = await configure(
+    Test.createTestingModule({ imports: [AppModule], controllers }),
+  ).compile();
 
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
   app.useLogger(app.get(Logger));
@@ -105,4 +110,18 @@ export async function loginToken(
 export function errorFields(body: unknown): string[] {
   const details = (body as { error?: { details?: { field: string }[] } }).error?.details ?? [];
   return details.map((detail) => detail.field).sort();
+}
+
+/** Jam palsu untuk ClockService — logika absensi diuji pada jam tertentu. */
+export class FakeClock {
+  private current = new Date();
+
+  now(): Date {
+    return new Date(this.current);
+  }
+
+  /** `set('2026-10-19T07:50:00+07:00')` */
+  set(instant: string | Date): void {
+    this.current = new Date(instant);
+  }
 }

@@ -23,6 +23,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { ClockService } from '@/common/clock/clock.service';
 import { ErrorCode } from '@/common/constants/error-codes';
 import { Role } from '@/common/constants/roles';
 import { ClientInfo } from '@/common/decorators/client-info.decorator';
@@ -92,6 +93,7 @@ export class UsersController {
     private readonly importer: UsersImportService,
     private readonly avatars: AvatarService,
     private readonly qr: QrService,
+    private readonly clock: ClockService,
   ) {}
 
   // ----------------------------- profil sendiri -----------------------------
@@ -134,7 +136,7 @@ export class UsersController {
   })
   @ApiDataResponse(PersonalQrEntity)
   myQr(@CurrentUser('id') userId: string): PersonalQr {
-    const { token, expiresAt } = this.qr.generatePersonalToken(userId);
+    const { token, expiresAt } = this.qr.generatePersonalToken(userId, this.clock.now());
     return { token, expiresAt, intervalSeconds: this.qr.personalInterval };
   }
 

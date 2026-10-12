@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { ClockModule } from '@/common/clock/clock.module';
 import { AllExceptionsFilter } from '@/common/filters/all-exceptions.filter';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -12,6 +13,7 @@ import { validationExceptionFactory } from '@/common/pipes/validation-exception.
 import { setAppTimezone } from '@/common/utils/date.util';
 import { AppConfigModule, AppConfigService } from '@/config/app.config';
 import { buildLoggerParams } from '@/config/logger.config';
+import { AttendanceModule } from '@/modules/attendance/attendance.module';
 import { AuditLogsModule } from '@/modules/audit-logs/audit-logs.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { DepartmentsModule } from '@/modules/departments/departments.module';
@@ -46,6 +48,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     }),
     CacheModule.register({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    ClockModule,
     PrismaModule,
     AuditLogsModule,
     AuthModule,
@@ -57,6 +60,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     LocationsModule,
     HolidaysModule,
     KiosksModule,
+    AttendanceModule,
     HealthModule,
   ],
   providers: [

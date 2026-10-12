@@ -1,11 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
+import { ClockService } from '@/common/clock/clock.service';
 import { ErrorCode } from '@/common/constants/error-codes';
 import type { ClientInfo } from '@/common/decorators/client-info.decorator';
 import { BusinessException } from '@/common/exceptions/business.exception';
 import { conflictError, fieldError, notFoundError } from '@/common/exceptions/error-factories';
 import type { PaginatedResult } from '@/common/types/api-response.type';
-import { combineDateAndTime, toDbDate, todayDateString } from '@/common/utils/date.util';
+import { combineDateAndTime, toDbDate, toTzDateString } from '@/common/utils/date.util';
 import { paginate, toSkipTake } from '@/common/utils/paginate.util';
 import { resolveOrderBy } from '@/common/utils/sort.util';
 import { AppConfigService } from '@/config/app.config';
@@ -72,6 +73,7 @@ export class KiosksService {
     private readonly kioskCache: KioskCacheService,
     private readonly audit: AuditLogsService,
     private readonly config: AppConfigService,
+    private readonly clock: ClockService,
   ) {}
 
   async list(query: KioskQueryDto): Promise<PaginatedResult<KioskView>> {
@@ -157,7 +159,7 @@ export class KiosksService {
   }
 
   /** Token QR terkini untuk layar kiosk (dipolling ~5 detik). */
-  async getCurrentQr(id: string, now: Date = new Date()): Promise<KioskQr> {
+  async getCurrentQr(id: string, now: Date = this.clock.now()): Promise<KioskQr> {
     const kiosk = await this.kioskCache.get(id, now.getTime());
     if (!kiosk) throw notFoundError('Kiosk tidak ditemukan');
     if (!kiosk.isActive || !kiosk.location.isActive) {
@@ -182,7 +184,7 @@ export class KiosksService {
    */
   async recentScans(id: string): Promise<RecentScan[]> {
     await this.findOne(id);
-    const today = todayDateString();
+    const today = toTzDateString(this.clock.now());
 
     const logs = await this.prisma.attendanceScanLog.findMany({
       where: {
