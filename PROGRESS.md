@@ -1,0 +1,36 @@
+# PROGRESS — AbsenYok
+
+Status: ⬜ belum · 🟡 dikerjakan · ✅ selesai
+
+Perbarui file ini setiap selesai satu prompt (lihat CLAUDE.md → Alur kerja), termasuk kendala
+dan hal yang belum tuntas.
+
+## Backend
+
+| # | Prompt | Status | Tanggal | Commit | Catatan |
+|---|---|---|---|---|---|
+| BE-01 | [Setup Proyek NestJS & Lapisan Common](backend/prompts/01-setup-project.md) | ✅ | 2026-10-11 | `1c4c242` | Memakai **NestJS 11 (CommonJS)**; NestJS 12 hanya ESM, tidak cocok dengan `moduleFormat = "cjs"` di schema. `npm audit`: 2 temuan moderate di `js-yaml` lewat `@nestjs/swagger@11` (perbaikan hanya ada di Swagger 12 / Nest 12). |
+| BE-02 | [Database: Prisma 7 + MySQL + Seed](backend/prompts/02-database-prisma-seed.md) | ✅ | 2026-10-11 | `ba740f2` | DB dev: MySQL 8.0.30 Laragon. Zona waktu sesi DB dikunci ke UTC di adapter (`timezone: 'Z'`). Setelah clone wajib `npm run prisma:generate`. Seed LATE memakai `lateMinutes` 16–45 (bukan 1–45) agar sesuai toleransi 15 menit. Hari libur lunar tidak di-seed (input lewat admin). |
+| BE-03 | [Autentikasi JWT + Refresh Token Rotation + Role Guard](backend/prompts/03-auth-jwt-rbac.md) | ✅ | 2026-10-11 | `6b5fed9` | Guard JWT ditulis sendiri dengan `JwtService` (tanpa Passport) agar `TOKEN_EXPIRED` vs `TOKEN_INVALID` eksplisit. E2E butuh MySQL menyala dan DB `absenyok_test`. Access token tetap berlaku ≤15 menit setelah logout/ganti password (JWT stateless). |
+| BE-04 | [Users & Master Data](backend/prompts/04-users-master-data.md) | ✅ | 2026-10-11 | `674ba54` | **Belum tuntas:** `GET /users/me/qr` menunggu BE-05. Avatar disajikan via `app.useStaticAssets` (bukan `ServeStaticModule`, yang tidak aktif di e2e) dan hanya folder `/uploads/avatars`. Frontend perlu rewrite `/uploads/*` bila memakai proxy. Saat menggabungkan DTO dengan default, pakai `omitUndefined()`. |
+| BE-05 | [Kiosk & Token QR Dinamis](backend/prompts/05-kiosk-qr.md) | ⬜ | | | Termasuk `GET /users/me/qr` yang tertunda dari BE-04. |
+| BE-06 | [Inti Absensi: Scan Kiosk & Scan QR Personal](backend/prompts/06-attendance-scan.md) | ⬜ | | | |
+| BE-07 | [Riwayat, Koreksi Admin & Cron Harian](backend/prompts/07-attendance-admin-scheduler.md) | ⬜ | | | |
+| BE-08 | [Izin, Sakit & Cuti](backend/prompts/08-leave-requests.md) | ⬜ | | | Lampiran izin harus lewat endpoint ber-otorisasi (tidak disajikan statis). |
+| BE-09 | [Dashboard, Laporan & Export, Audit Log](backend/prompts/09-dashboard-reports-audit.md) | ⬜ | | | |
+| BE-10 | [Testing, Hardening Keamanan, Docker & CI](backend/prompts/10-testing-security-docker.md) | ⬜ | | | Docker MySQL 8.4 butuh `allowPublicKeyRetrieval` (sudah aktif otomatis di luar produksi). CI perlu MySQL service + DB `_test`. |
+
+## Frontend
+
+| # | Prompt | Status | Tanggal | Commit | Catatan |
+|---|---|---|---|---|---|
+| FE-01 | [Setup Next.js, Tailwind, shadcn/ui & PWA](frontend/prompts/01-setup-nextjs-pwa.md) | ⬜ | | | |
+| FE-02 | [Design System & Layout](frontend/prompts/02-design-system-layout.md) | ⬜ | | | |
+| FE-03 | [Autentikasi, API Client & Proteksi Route](frontend/prompts/03-auth-api-client.md) | ⬜ | | | Backend: `expiresIn` dalam detik; refresh dipicu oleh kode `TOKEN_EXPIRED`; cookie `ay_session` untuk middleware. |
+| FE-04 | [Beranda & Riwayat Karyawan](frontend/prompts/04-employee-home-history.md) | ⬜ | | | |
+| FE-05 | [Fitur Scan QR Absen](frontend/prompts/05-qr-scanner.md) | ⬜ | | | |
+| FE-06 | [QR Personal, Izin/Cuti & Profil Karyawan](frontend/prompts/06-myqr-leave-profile.md) | ⬜ | | | `workDays` dari backend berupa string `"1,2,3,4,5"`. |
+| FE-07 | [Layar Kiosk QR Dinamis](frontend/prompts/07-kiosk-display.md) | ⬜ | | | |
+| FE-08 | [Dashboard Admin & Master Data](frontend/prompts/08-admin-dashboard-master.md) | ⬜ | | | Error import XLSX: `details: [{ row, field, messages }]`. |
+| FE-09 | [Kelola Absensi, Approval Izin, Laporan & Scan QR Personal](frontend/prompts/09-admin-attendance-leave-reports.md) | ⬜ | | | |
+| FE-10 | [Testing, Optimasi & Deploy](frontend/prompts/10-testing-optimization-deploy.md) | ⬜ | | | |

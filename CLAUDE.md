@@ -12,7 +12,8 @@ Dokumen lain dibaca saat relevan: docs/ARCHITECTURE.md, docs/BUSINESS-RULES.md, 
 2. Sebelum menulis kode: baca prompt tersebut + PROMPT.md induknya (backend/PROMPT.md atau frontend/PROMPT.md), lalu tampilkan rencana singkat dan tunggu persetujuan saya.
 3. Setelah selesai: jalankan lint, build, dan test yang relevan; perbaiki sampai lulus.
 4. Akhiri dengan: daftar file yang dibuat/diubah, perintah untuk mencoba, checklist "Kriteria Selesai" (✅/❌), dan bagian "Perubahan Kontrak" bila ada.
-5. Jangan commit tanpa saya minta. Format commit: Conventional Commits.
+5. Setiap selesai satu prompt, perbarui `PROGRESS.md` di root: Status (⬜/🟡/✅), Tanggal, Commit (isi setelah di-commit), dan Catatan berisi kendala serta hal yang belum tuntas.
+6. Jangan commit tanpa saya minta. Format commit: Conventional Commits.
 
 ## Larangan
 - Jangan mengubah model di backend/prisma/schema.prisma tanpa izin.
