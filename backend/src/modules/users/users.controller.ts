@@ -39,6 +39,8 @@ import {
 import type { PaginatedResult } from '@/common/types/api-response.type';
 import type { AuthUser } from '@/common/types/auth-user.type';
 import { UserProfileEntity } from '@/modules/auth/entities/auth.entity';
+import { PersonalQrEntity } from '@/modules/kiosks/entities/kiosk.entity';
+import { QrService } from '@/modules/qr/qr.service';
 import type { UserProfile } from '@/modules/auth/user-profile';
 import { AvatarService } from './avatar.service';
 import {
@@ -54,6 +56,12 @@ import type { UserDetail } from './user.select';
 import { type ImportResult, UsersImportService } from './users-import.service';
 import { UsersService } from './users.service';
 import { XLSX_MIME } from './users.constants';
+
+interface PersonalQr {
+  token: string;
+  expiresAt: Date;
+  intervalSeconds: number;
+}
 
 const FILE_BODY = {
   schema: {
@@ -83,6 +91,7 @@ export class UsersController {
     private readonly users: UsersService,
     private readonly importer: UsersImportService,
     private readonly avatars: AvatarService,
+    private readonly qr: QrService,
   ) {}
 
   // ----------------------------- profil sendiri -----------------------------
@@ -113,6 +122,20 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<{ avatarUrl: string }> {
     return this.avatars.updateAvatar(userId, file);
+  }
+
+  @Get('me/qr')
+  @Roles(Role.EMPLOYEE)
+  @ApiOperation({
+    summary: 'QR personal (mode cadangan)',
+    description:
+      'Berganti tiap QR_PERSONAL_INTERVAL_SECONDS (default 60 detik); dipindai petugas lewat ' +
+      '`POST /attendance/personal-scan`.',
+  })
+  @ApiDataResponse(PersonalQrEntity)
+  myQr(@CurrentUser('id') userId: string): PersonalQr {
+    const { token, expiresAt } = this.qr.generatePersonalToken(userId);
+    return { token, expiresAt, intervalSeconds: this.qr.personalInterval };
   }
 
   // ------------------------------- import XLSX -------------------------------

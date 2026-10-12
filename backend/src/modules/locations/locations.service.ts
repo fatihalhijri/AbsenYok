@@ -5,6 +5,7 @@ import { paginate, toSkipTake } from '@/common/utils/paginate.util';
 import { resolveOrderBy } from '@/common/utils/sort.util';
 import type { Prisma } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
+import { KioskCacheService } from '@/modules/qr/kiosk-cache.service';
 import {
   type CreateLocationDto,
   LOCATION_SORT_FIELDS,
@@ -48,7 +49,10 @@ const toDecimalInput = (value: number | undefined) =>
 
 @Injectable()
 export class LocationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly kioskCache: KioskCacheService,
+  ) {}
 
   async list(query: LocationQueryDto): Promise<PaginatedResult<LocationView>> {
     const where: Prisma.LocationWhereInput = query.search
@@ -96,6 +100,8 @@ export class LocationsService {
       },
       select: LOCATION_SELECT,
     });
+    // Koordinat/radius/status lokasi ikut di-cache bersama kiosk (verifikasi QR & geofence).
+    this.kioskCache.invalidateAll();
     return toView(row);
   }
 
