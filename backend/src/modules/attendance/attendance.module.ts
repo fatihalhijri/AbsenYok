@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
+import { AttendanceAdminController } from './attendance-admin.controller';
+import { AttendanceAdminService } from './attendance-admin.service';
 import { AttendanceContextLoader } from './attendance-context.loader';
+import { AttendanceHistoryService } from './attendance-history.service';
+import { AttendanceRecalculateService } from './attendance-recalculate.service';
 import { AttendanceRulesService } from './attendance-rules.service';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
@@ -9,7 +13,8 @@ import { ScanLogService } from './scan-log.service';
 import { ScanThrottleGuard } from './scan-throttle.guard';
 
 @Module({
-  controllers: [AttendanceController],
+  // Urutan penting: rute statis AttendanceController didaftarkan sebelum `:id` milik admin.
+  controllers: [AttendanceController, AttendanceAdminController],
   providers: [
     AttendanceService,
     AttendanceRulesService,
@@ -18,7 +23,10 @@ import { ScanThrottleGuard } from './scan-throttle.guard';
     DeviceBindingService,
     ScanLogService,
     ScanThrottleGuard,
+    AttendanceHistoryService,
+    AttendanceAdminService,
+    AttendanceRecalculateService,
   ],
-  exports: [AttendanceRulesService],
+  exports: [AttendanceRulesService, AttendanceRecalculateService],
 })
 export class AttendanceModule {}

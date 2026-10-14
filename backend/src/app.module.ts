@@ -22,6 +22,7 @@ import { HolidaysModule } from '@/modules/holidays/holidays.module';
 import { KiosksModule } from '@/modules/kiosks/kiosks.module';
 import { LocationsModule } from '@/modules/locations/locations.module';
 import { QrModule } from '@/modules/qr/qr.module';
+import { SchedulerModule } from '@/modules/scheduler/scheduler.module';
 import { SettingsModule } from '@/modules/settings/settings.module';
 import { ShiftsModule } from '@/modules/shifts/shifts.module';
 import { UsersModule } from '@/modules/users/users.module';
@@ -61,6 +62,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     HolidaysModule,
     KiosksModule,
     AttendanceModule,
+    SchedulerModule,
     HealthModule,
   ],
   providers: [

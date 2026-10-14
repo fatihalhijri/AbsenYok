@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '@/common/constants/roles';
 import { ClientInfo } from '@/common/decorators/client-info.decorator';
@@ -6,9 +15,15 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { ApiDataResponse, ApiStandardErrors } from '@/common/swagger/api-response.decorators';
 import type { AuthUser } from '@/common/types/auth-user.type';
+import { AttendanceHistoryService, type MonthlyAttendance } from './attendance-history.service';
 import { AttendanceService, type MyTodayStatus, type ScanResult } from './attendance.service';
+import { MonthQueryDto } from './dto/attendance-admin.dto';
 import { PersonalScanDto, ScanKioskDto } from './dto/scan.dto';
-import { MyTodayEntity, ScanResultEntity } from './entities/attendance.entity';
+import {
+  MonthlyAttendanceEntity,
+  MyTodayEntity,
+  ScanResultEntity,
+} from './entities/attendance.entity';
 import { ScanThrottleGuard } from './scan-throttle.guard';
 
 const SCAN_ERROR_EXAMPLE = {
@@ -32,7 +47,10 @@ const SCAN_ERRORS_DESCRIPTION =
 @ApiStandardErrors()
 @Controller('attendance')
 export class AttendanceController {
-  constructor(private readonly attendance: AttendanceService) {}
+  constructor(
+    private readonly attendance: AttendanceService,
+    private readonly history: AttendanceHistoryService,
+  ) {}
 
   @Post('scan')
   @Roles(Role.EMPLOYEE)
@@ -84,5 +102,20 @@ export class AttendanceController {
   @ApiDataResponse(MyTodayEntity)
   myToday(@CurrentUser('id') userId: string): Promise<MyTodayStatus> {
     return this.attendance.getMyToday(userId);
+  }
+
+  @Get('me')
+  @Roles(Role.EMPLOYEE)
+  @ApiOperation({
+    summary: 'Riwayat absensi saya per bulan + ringkasan',
+    description:
+      'attendanceRate = (present + late) / hari kerja yang sudah lewat × 100 (1 desimal)',
+  })
+  @ApiDataResponse(MonthlyAttendanceEntity)
+  myMonth(
+    @CurrentUser('id') userId: string,
+    @Query() query: MonthQueryDto,
+  ): Promise<MonthlyAttendance> {
+    return this.history.myMonth(userId, query.month);
   }
 }
