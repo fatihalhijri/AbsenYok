@@ -20,6 +20,7 @@ import { DepartmentsModule } from '@/modules/departments/departments.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { HolidaysModule } from '@/modules/holidays/holidays.module';
 import { KiosksModule } from '@/modules/kiosks/kiosks.module';
+import { LeaveRequestsModule } from '@/modules/leave-requests/leave-requests.module';
 import { LocationsModule } from '@/modules/locations/locations.module';
 import { QrModule } from '@/modules/qr/qr.module';
 import { SchedulerModule } from '@/modules/scheduler/scheduler.module';
@@ -62,6 +63,7 @@ import { PrismaModule } from '@/prisma/prisma.module';
     HolidaysModule,
     KiosksModule,
     AttendanceModule,
+    LeaveRequestsModule,
     SchedulerModule,
     HealthModule,
   ],
