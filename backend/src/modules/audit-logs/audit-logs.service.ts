@@ -1,7 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ClockService } from '@/common/clock/clock.service';
+import type { PaginatedResult } from '@/common/types/api-response.type';
+import { resolveDateRange } from '@/common/utils/date-range.util';
+import { addDays, combineDateAndTime, toTzDateString } from '@/common/utils/date.util';
+import { paginate, toSkipTake } from '@/common/utils/paginate.util';
 import type { Prisma } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import type { AuditAction } from './audit-action';
+import type { AuditLogQueryDto } from './dto/audit-log-query.dto';
+
+const AUDIT_SELECT = {
+  id: true,
+  action: true,
+  entity: true,
+  entityId: true,
+  metadata: true,
+  ipAddress: true,
+  userAgent: true,
+  createdAt: true,
+  actor: { select: { id: true, name: true, email: true, role: true } },
+} satisfies Prisma.AuditLogSelect;
+
+export type AuditLogView = Prisma.AuditLogGetPayload<{ select: typeof AUDIT_SELECT }>;
 
 export interface AuditLogEntry {
   actorId?: string | null;
@@ -19,7 +39,40 @@ export interface AuditLogEntry {
 export class AuditLogsService {
   private readonly logger = new Logger(AuditLogsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: ClockService,
+  ) {}
+
+  /** Daftar audit (SUPER_ADMIN) — terbaru lebih dulu, rentang maks 92 hari. */
+  async list(query: AuditLogQueryDto): Promise<PaginatedResult<AuditLogView>> {
+    const range = resolveDateRange(query.dateFrom, query.dateTo, toTzDateString(this.clock.now()));
+    const where: Prisma.AuditLogWhereInput = {
+      action: query.action,
+      actorId: query.actorId,
+      entity: query.entity,
+      entityId: query.entityId,
+      createdAt: {
+        gte: combineDateAndTime(range.from, '00:00'),
+        lt: combineDateAndTime(addDays(range.to, 1), '00:00'),
+      },
+      ...(query.search && {
+        actor: {
+          OR: [{ name: { contains: query.search } }, { email: { contains: query.search } }],
+        },
+      }),
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: query.sortOrder },
+        select: AUDIT_SELECT,
+        ...toSkipTake(query),
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+    return paginate(rows, total, query);
+  }
 
   /**
    * Catat aktivitas sensitif.

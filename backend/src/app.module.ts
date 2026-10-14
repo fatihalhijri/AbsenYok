@@ -16,6 +16,7 @@ import { buildLoggerParams } from '@/config/logger.config';
 import { AttendanceModule } from '@/modules/attendance/attendance.module';
 import { AuditLogsModule } from '@/modules/audit-logs/audit-logs.module';
 import { AuthModule } from '@/modules/auth/auth.module';
+import { DashboardModule } from '@/modules/dashboard/dashboard.module';
 import { DepartmentsModule } from '@/modules/departments/departments.module';
 import { HealthModule } from '@/modules/health/health.module';
 import { HolidaysModule } from '@/modules/holidays/holidays.module';
@@ -23,6 +24,7 @@ import { KiosksModule } from '@/modules/kiosks/kiosks.module';
 import { LeaveRequestsModule } from '@/modules/leave-requests/leave-requests.module';
 import { LocationsModule } from '@/modules/locations/locations.module';
 import { QrModule } from '@/modules/qr/qr.module';
+import { ReportsModule } from '@/modules/reports/reports.module';
 import { SchedulerModule } from '@/modules/scheduler/scheduler.module';
 import { SettingsModule } from '@/modules/settings/settings.module';
 import { ShiftsModule } from '@/modules/shifts/shifts.module';
@@ -64,6 +66,8 @@ import { PrismaModule } from '@/prisma/prisma.module';
     KiosksModule,
     AttendanceModule,
     LeaveRequestsModule,
+    DashboardModule,
+    ReportsModule,
     SchedulerModule,
     HealthModule,
   ],
