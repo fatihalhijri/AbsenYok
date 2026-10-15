@@ -1936,6 +1936,10 @@ export interface components {
             kioskId?: string | null;
             /** Format: uuid */
             locationId?: string | null;
+            /** @description Kiosk tempat scan */
+            kiosk?: components["schemas"]["IdNameEntity"] | null;
+            /** @description Lokasi absen */
+            location?: components["schemas"]["IdNameEntity"] | null;
         };
         ScanUserEntity: {
             /** @example Budi Santoso */
@@ -2155,6 +2159,10 @@ export interface components {
             kioskId?: string | null;
             /** Format: uuid */
             locationId?: string | null;
+            /** @description Kiosk tempat scan */
+            kiosk?: components["schemas"]["IdNameEntity"] | null;
+            /** @description Lokasi absen */
+            location?: components["schemas"]["IdNameEntity"] | null;
             user: components["schemas"]["AttendanceUserEntity"];
         };
         ScanLogUserEntity: {
@@ -2297,6 +2305,10 @@ export interface components {
             kioskId?: string | null;
             /** Format: uuid */
             locationId?: string | null;
+            /** @description Kiosk tempat scan */
+            kiosk?: components["schemas"]["IdNameEntity"] | null;
+            /** @description Lokasi absen */
+            location?: components["schemas"]["IdNameEntity"] | null;
             user: components["schemas"]["AttendanceUserEntity"];
             /** Format: uuid */
             userId: string;
@@ -2309,8 +2321,6 @@ export interface components {
              *     }
              */
             shiftSnapshot?: Record<string, never> | null;
-            kiosk?: components["schemas"]["IdNameEntity"] | null;
-            location?: components["schemas"]["IdNameEntity"] | null;
             /** @description Petugas (QR personal) */
             scannedBy?: components["schemas"]["IdNameEntity"] | null;
             leaveRequest?: components["schemas"]["AttendanceLeaveRefEntity"] | null;

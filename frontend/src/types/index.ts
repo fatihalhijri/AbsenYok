@@ -6,6 +6,14 @@ export type Schemas = components['schemas'];
 export type UserProfile = Schemas['UserProfileEntity'];
 export type AuthTokenResponse = Schemas['AuthTokenEntity'];
 export type PublicSettings = Schemas['PublicSettingsEntity'];
+export type Attendance = Schemas['AttendanceEntity'];
+export type MyToday = Schemas['MyTodayEntity'];
+export type TodayShift = Schemas['TodayShiftEntity'];
+export type MonthlyAttendance = Schemas['MonthlyAttendanceEntity'];
+export type MonthlySummary = Schemas['MonthlySummaryEntity'];
+export type Holiday = Schemas['HolidayEntity'];
+export type AttendanceMethod = NonNullable<Attendance['checkInMethod']>;
+export type LeaveType = Schemas['TodayLeaveEntity']['type'];
 export type Role = UserProfile['role'];
 
 export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'SICK' | 'PERMIT' | 'LEAVE';

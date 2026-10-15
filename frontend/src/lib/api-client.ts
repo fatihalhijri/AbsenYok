@@ -57,6 +57,21 @@ async function runExclusive<T>(task: () => Promise<T>): Promise<T> {
   return locks.request(REFRESH_LOCK, task);
 }
 
+/**
+ * Request `responseType: 'blob'` (unduh file) yang gagal tetap membawa JSON error backend di
+ * dalam Blob — urai dulu agar `toApiError` mendapat `code` & `message` yang benar.
+ */
+async function parseBlobErrorBody(error: unknown) {
+  if (!axios.isAxiosError(error) || !error.response) return;
+  const { data } = error.response;
+  if (typeof Blob === 'undefined' || !(data instanceof Blob) || !data.type.includes('json')) return;
+  try {
+    error.response.data = JSON.parse(await data.text()) as unknown;
+  } catch {
+    // Bukan JSON valid — biarkan toApiError memakai pesan umum.
+  }
+}
+
 interface CreateApiClientOptions {
   baseURL: string;
   store: Pick<AuthStore, 'getState'>;
@@ -100,6 +115,7 @@ export function createApiClient({ baseURL, store }: CreateApiClientOptions) {
   });
 
   http.interceptors.response.use(undefined, async (error: unknown) => {
+    await parseBlobErrorBody(error);
     const apiError = toApiError(error);
     const config = (axios.isAxiosError(error) ? error.config : undefined) as
       RetriableConfig | undefined;

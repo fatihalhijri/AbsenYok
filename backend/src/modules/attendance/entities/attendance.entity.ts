@@ -47,6 +47,16 @@ export class AttendanceEntity {
 
   @ApiPropertyOptional({ format: 'uuid', nullable: true, type: String })
   locationId: string | null;
+
+  @ApiPropertyOptional({
+    type: () => IdNameEntity,
+    nullable: true,
+    description: 'Kiosk tempat scan',
+  })
+  kiosk: IdNameEntity | null;
+
+  @ApiPropertyOptional({ type: () => IdNameEntity, nullable: true, description: 'Lokasi absen' })
+  location: IdNameEntity | null;
 }
 
 class ScanUserEntity {
@@ -272,12 +282,6 @@ export class AttendanceDetailEntity extends AttendanceListItemEntity {
     example: { name: 'Reguler', startTime: '08:00', endTime: '17:00', lateToleranceMinutes: 15 },
   })
   shiftSnapshot: Record<string, unknown> | null;
-
-  @ApiPropertyOptional({ type: IdNameEntity, nullable: true })
-  kiosk: IdNameEntity | null;
-
-  @ApiPropertyOptional({ type: IdNameEntity, nullable: true })
-  location: IdNameEntity | null;
 
   @ApiPropertyOptional({ type: IdNameEntity, nullable: true, description: 'Petugas (QR personal)' })
   scannedBy: IdNameEntity | null;
