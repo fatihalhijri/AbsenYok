@@ -187,26 +187,14 @@ export class AttendanceAdminService {
       select: SCAN_LOG_SELECT,
     });
 
-    const {
-      userId,
-      createdAt,
-      updatedAt,
-      user,
-      kiosk,
-      location,
-      scannedBy,
-      leaveRequest,
-      shiftSnapshot,
-      ...base
-    } = row;
+    const { userId, createdAt, updatedAt, user, scannedBy, leaveRequest, shiftSnapshot, ...base } =
+      row;
     return {
       ...toAttendanceView({ ...base, shiftSnapshot }),
       userId,
       createdAt,
       updatedAt,
       user,
-      kiosk,
-      location,
       scannedBy,
       leaveRequest,
       shiftSnapshot,

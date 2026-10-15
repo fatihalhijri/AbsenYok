@@ -47,4 +47,43 @@ export const stringToDate = (date: string) => dayjs(date, DATE_FORMAT).toDate();
 /** Hari ini menurut zona aplikasi (`YYYY-MM-DD`). */
 export const todayString = () => inAppTz().format(DATE_FORMAT);
 
+/** 545 → "9 j 5 m"; 45 → "45 m"; 0 → "0 m". */
+export function formatMinutes(totalMinutes: number): string {
+  const minutes = Math.max(0, Math.round(totalMinutes));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest} m`;
+  return rest === 0 ? `${hours} j` : `${hours} j ${rest} m`;
+}
+
+/** Durasi ms → "H:MM:SS" (stopwatch). */
+export function formatClockDuration(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** Bulan sebelumnya/berikutnya dari `YYYY-MM`. */
+export const shiftMonth = (month: string, delta: number) =>
+  dayjs(month, MONTH_FORMAT).add(delta, 'month').format(MONTH_FORMAT);
+
+/** `'2026-10-15'` → "Kam, 15 Okt". */
+export const formatDayShort = (date: string) => dayjs(date, DATE_FORMAT).format('ddd, D MMM');
+
+/** ISO weekday (1=Senin … 7=Minggu) dari tanggal kalender. */
+export const isoWeekdayOf = (date: string) => {
+  const day = dayjs(date, DATE_FORMAT).day();
+  return day === 0 ? 7 : day;
+};
+
+/** Semua tanggal `YYYY-MM-DD` dalam bulan. */
+export function datesInMonth(month: string): string[] {
+  const start = dayjs(month, MONTH_FORMAT);
+  return Array.from({ length: start.daysInMonth() }, (_, index) =>
+    start.add(index, 'day').format(DATE_FORMAT),
+  );
+}
+
 export { dayjs };

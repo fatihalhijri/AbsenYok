@@ -219,7 +219,12 @@ describe('Attendance scan (e2e)', () => {
         canCheckIn: false,
         canCheckOut: false,
         checkOutAvailableAt: '2026-10-19T00:55:20.000Z',
-        attendance: { status: 'PRESENT' },
+        attendance: {
+          status: 'PRESENT',
+          // Nama kiosk & lokasi ikut dikirim (riwayat karyawan tidak bisa membaca /kiosks).
+          kiosk: { id: kioskId, name: 'Lobi Utama' },
+          location: { id: locationId, name: 'Kantor Pusat' },
+        },
       });
     });
 

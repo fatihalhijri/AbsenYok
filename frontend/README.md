@@ -119,6 +119,27 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
   profil FE-06), hook `useLogin`, `useLogout`, `useEndSession`, `usePublicSettings`.
 - **Test**: `npm test` (Vitest + MSW) — termasuk "5 request paralel → 1 refresh".
 
+## Beranda & riwayat karyawan (FE-04)
+
+- **`/app`** (`features/attendance/components/employee-home.tsx`): salam + tanggal + jam berjalan,
+  **kartu Status Hari Ini**, info shift, ringkasan bulan (4 stat + progress ring), 5 aktivitas
+  terakhir, banner "Pasang aplikasi" (`beforeinstallprompt`; iOS → instruksi Bagikan → Tambahkan ke
+  Layar Utama; bisa ditutup & diingat via `useLocalFlag`), tombol "Perbarui".
+- **Kondisi kartu** diturunkan murni dari `/attendance/me/today` oleh `deriveTodayState()`
+  (`features/attendance/today-status.ts`): `ready`, `not-open` (hitung mundur), `checked-in`
+  (durasi live, CTA pulang / info jeda minimal), `checked-out`, `on-leave`, `holiday`,
+  `non-working-day`, `no-shift`, `missed`.
+- **Waktu live terisolasi**: hanya `LiveClock`/`LiveDuration`/`Countdown` yang berlangganan
+  `useNow()` (satu timer bersama per interval, selaras pergantian detik) — kartu & halaman tidak
+  ikut render ulang tiap detik. Selisih jam server−perangkat (`serverTime`) dipakai sebagai offset.
+  Query today: `refetchOnWindowFocus` aktif; hitung mundur habis → refetch.
+- **`/app/history?month=YYYY-MM`** (default bulan berjalan, maks bulan ini): ringkasan bulan,
+  tab Kalender (titik warna status, libur merah, tap → bottom sheet detail termasuk lokasi/kiosk)
+  dan Daftar (terbaru di atas), tombol **Unduh PDF** (`GET /reports/me/export`, blob + toast).
+- **Test**: `today-status.test.ts` (semua kondisi) dan `today-status-card.test.tsx` (jsdom +
+  Testing Library: render tiap kondisi, hitung mundur → `onRefresh` sekali, dan bukti isolasi —
+  `deriveTodayState` tetap dipanggil 1× walau durasi berdetak).
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi

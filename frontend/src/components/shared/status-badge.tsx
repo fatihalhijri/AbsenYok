@@ -43,6 +43,10 @@ export const LEAVE_STATUS_META: Record<LeaveStatus, { label: string; tone: Tone 
   CANCELLED: { label: 'Dibatalkan', tone: 'gray' },
 };
 
+/** Warna titik status (dipakai juga di kalender riwayat agar warna konsisten). */
+export const attendanceDotClass = (status: AttendanceStatus) =>
+  DOT_CLASSES[ATTENDANCE_STATUS_META[status].tone];
+
 type StatusBadgeProps = { className?: string } & (
   { kind?: 'attendance'; status: AttendanceStatus } | { kind: 'leave'; status: LeaveStatus }
 );

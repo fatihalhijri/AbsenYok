@@ -16,6 +16,9 @@ export const ATTENDANCE_SELECT = {
   note: true,
   kioskId: true,
   locationId: true,
+  // Nama kiosk/lokasi untuk riwayat karyawan (karyawan tidak punya akses ke /kiosks & /locations).
+  kiosk: { select: { id: true, name: true } },
+  location: { select: { id: true, name: true } },
   shiftSnapshot: true,
 } satisfies Prisma.AttendanceSelect;
 
