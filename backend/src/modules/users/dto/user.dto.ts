@@ -20,6 +20,10 @@ import {
 } from '@/common/constants/password-policy';
 import { Role } from '@/common/constants/roles';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
+import {
+  IsOptionalNonNull,
+  PARTIAL_REJECT_NULL,
+} from '@/common/validators/is-optional-non-null.validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -86,7 +90,7 @@ export class CreateUserDto {
     default: Role.EMPLOYEE,
     description: 'ADMIN hanya boleh membuat EMPLOYEE',
   })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsEnum(Role, { message: `Role harus salah satu dari: ${ROLES.join(', ')}` })
   role?: Role;
 
@@ -110,7 +114,10 @@ export class CreateUserDto {
 }
 
 /** Partial update tanpa password (password lewat `reset-password`). */
-export class UpdateUserDto extends PartialType(OmitType(CreateUserDto, ['password'] as const)) {}
+export class UpdateUserDto extends PartialType(
+  OmitType(CreateUserDto, ['password'] as const),
+  PARTIAL_REJECT_NULL,
+) {}
 
 export class UpdateUserStatusDto {
   @ApiProperty({ example: false })
@@ -128,7 +135,7 @@ export class ResetPasswordDto {
 
 export class UpdateMeDto {
   @ApiPropertyOptional({ example: 'Budi Santoso' })
-  @IsOptional()
+  @IsOptionalNonNull()
   @Transform(trim)
   @IsString({ message: 'Nama harus berupa teks' })
   @MinLength(2, { message: 'Nama minimal 2 karakter' })
@@ -153,7 +160,7 @@ export const USER_SORT_FIELDS = [
 
 export class UserQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ROLES })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsEnum(Role, { message: `role harus salah satu dari: ${ROLES.join(', ')}` })
   role?: Role;
 

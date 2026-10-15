@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
-  IsOptional,
   IsString,
   Matches,
   Max,
@@ -12,6 +11,10 @@ import {
   MinLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
+import {
+  IsOptionalNonNull,
+  PARTIAL_REJECT_NULL,
+} from '@/common/validators/is-optional-non-null.validator';
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const TIME_MESSAGE = 'harus berformat HH:mm (00:00–23:59)';
@@ -38,7 +41,7 @@ export class CreateShiftDto {
   endTime: string;
 
   @ApiPropertyOptional({ example: 15, minimum: 0, maximum: 120, default: 15 })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'Toleransi terlambat harus bilangan bulat' })
   @Min(0, { message: 'Toleransi terlambat minimal 0 menit' })
   @Max(120, { message: 'Toleransi terlambat maksimal 120 menit' })
@@ -51,7 +54,7 @@ export class CreateShiftDto {
     default: 60,
     description: 'Absen masuk dibuka sekian menit sebelum jam masuk',
   })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'Waktu buka absen harus bilangan bulat' })
   @Min(0, { message: 'Waktu buka absen minimal 0 menit' })
   @Max(240, { message: 'Waktu buka absen maksimal 240 menit' })
@@ -62,17 +65,17 @@ export class CreateShiftDto {
     default: '1,2,3,4,5',
     description: 'ISO weekday dipisah koma: 1 = Senin … 7 = Minggu (unik)',
   })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsString({ message: 'Hari kerja harus berupa teks, mis. "1,2,3,4,5"' })
   workDays?: string;
 
   @ApiPropertyOptional({ example: true, default: true })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsBoolean({ message: 'isActive harus boolean' })
   isActive?: boolean;
 }
 
-export class UpdateShiftDto extends PartialType(CreateShiftDto) {}
+export class UpdateShiftDto extends PartialType(CreateShiftDto, PARTIAL_REJECT_NULL) {}
 
 export const SHIFT_SORT_FIELDS = ['name', 'startTime', 'createdAt'] as const;
 

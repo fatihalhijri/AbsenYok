@@ -31,8 +31,11 @@ export interface VerifiedPersonalToken {
   window: number;
 }
 
-/** Token personal yang sudah dipakai ditolak selama 2 window (toleransi 1 window sebelumnya). */
-export const PERSONAL_REPLAY_TTL_MS = 120_000;
+/**
+ * Token personal diterima pada window-nya dan window berikutnya (toleransi 1 window), jadi
+ * penanda "sudah dipakai" harus bertahan 2 × interval agar mencakup seluruh masa berlaku token.
+ */
+export const personalReplayTtlMs = (intervalSeconds: number) => 2 * intervalSeconds * 1000;
 
 const qrInvalid = () => new BusinessException(ErrorCode.QR_INVALID);
 const qrExpired = () => new BusinessException(ErrorCode.QR_EXPIRED);
@@ -40,12 +43,14 @@ const qrExpired = () => new BusinessException(ErrorCode.QR_EXPIRED);
 /** Penerbitan & verifikasi token QR dinamis (docs/QR-SECURITY.md). Tanpa controller. */
 @Injectable()
 export class QrService {
-  private readonly replayGuard = new ReplayGuard(PERSONAL_REPLAY_TTL_MS);
+  private readonly replayGuard: ReplayGuard;
 
   constructor(
     private readonly config: AppConfigService,
     private readonly kioskCache: KioskCacheService,
-  ) {}
+  ) {
+    this.replayGuard = new ReplayGuard(personalReplayTtlMs(this.personalInterval));
+  }
 
   generateKioskToken(
     kiosk: { id: string; secret: string; qrIntervalSeconds: number },
@@ -91,7 +96,12 @@ export class QrService {
     };
   }
 
-  /** Lempar QR_INVALID / QR_EXPIRED / QR_ALREADY_USED (anti-replay). */
+  /**
+   * Lempar QR_INVALID / QR_EXPIRED / QR_ALREADY_USED. Token yang valid langsung DIPESAN
+   * (anti-replay atomik): request kedua dengan token yang sama ditolak walau request pertama
+   * belum selesai disimpan. Bila scan gagal, panggil `releasePersonalToken` agar token yang
+   * sama bisa dicoba lagi (mis. setelah petugas pindah ke dalam area kantor).
+   */
   verifyPersonalToken(token: string, now: Date = new Date()): VerifiedPersonalToken {
     const parsed = parseQrToken(token, 'P');
     if (!parsed) throw qrInvalid();
@@ -100,16 +110,16 @@ export class QrService {
       throw qrExpired();
     }
     if (!isSignatureValid(this.personalSecret, parsed)) throw qrInvalid();
-    if (this.replayGuard.has(replayKey(parsed.subjectId, parsed.window), now.getTime())) {
+    if (!this.replayGuard.tryAdd(replayKey(parsed.subjectId, parsed.window), now.getTime())) {
       throw new BusinessException(ErrorCode.QR_ALREADY_USED);
     }
 
     return { userId: parsed.subjectId, window: parsed.window };
   }
 
-  /** Panggil setelah scan personal berhasil disimpan. */
-  markPersonalTokenUsed(userId: string, window: number, now: Date = new Date()): void {
-    this.replayGuard.add(replayKey(userId, window), now.getTime());
+  /** Lepas pesanan token personal (scan gagal sebelum tersimpan). */
+  releasePersonalToken(token: VerifiedPersonalToken): void {
+    this.replayGuard.delete(replayKey(token.userId, token.window));
   }
 
   get personalInterval(): number {

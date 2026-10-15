@@ -202,6 +202,30 @@ describe('Leave requests (e2e)', () => {
     });
   });
 
+  describe('pengajuan bersamaan (double-tap)', () => {
+    it('dua pengajuan bertabrakan dikirim bersamaan → hanya satu tersimpan, lainnya 409', async () => {
+      const shift = await prisma.shift.findFirstOrThrow();
+      await createUser(prisma, {
+        employeeCode: 'EMP-D',
+        email: 'd@lv.test',
+        role: Role.EMPLOYEE,
+        shiftId: shift.id,
+      });
+      const token = await loginToken(http, 'd@lv.test', nextIp());
+      const fields = {
+        type: 'PERMIT',
+        startDate: '2026-11-16',
+        endDate: '2026-11-17',
+        reason: 'Mengurus dokumen kependudukan',
+      };
+
+      const results = await Promise.all([submit(token, fields), submit(token, fields)]);
+      expect(results.map((res) => res.status).sort()).toEqual([201, 409]);
+      const user = await prisma.user.findUniqueOrThrow({ where: { email: 'd@lv.test' } });
+      expect(await prisma.leaveRequest.count({ where: { userId: user.id } })).toBe(1);
+    });
+  });
+
   describe('lampiran', () => {
     let sickId: string;
 

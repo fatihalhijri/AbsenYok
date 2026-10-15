@@ -83,6 +83,19 @@ describe('KioskCacheService', () => {
     expect(findUnique).toHaveBeenCalledTimes(3);
   });
 
+  it('query yang selesai SETELAH rotasi secret (invalidate) tidak menyimpan secret lama', async () => {
+    const { cache, findUnique } = setup();
+    let releaseOld!: (value: unknown) => void;
+    findUnique.mockImplementationOnce(() => new Promise((resolve) => (releaseOld = resolve)));
+    const pending = cache.get('k1', 0);
+    cache.invalidate('k1');
+    releaseOld(row);
+    await pending;
+
+    await cache.get('k1', 1);
+    expect(findUnique).toHaveBeenCalledTimes(2);
+  });
+
   it('memakai waktu sekarang bila argumen `now` tidak diberikan', async () => {
     const { cache, findUnique } = setup();
     await cache.get('k1');

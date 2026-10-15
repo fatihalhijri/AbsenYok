@@ -304,8 +304,13 @@ export class MonthlySummaryEntity {
   @ApiProperty({ example: 0 }) leave: number;
   @ApiProperty({ example: 62 }) totalLateMinutes: number;
   @ApiProperty({ example: 9480 }) totalWorkMinutes: number;
-  @ApiProperty({ example: 20, description: 'Hari kerja yang sudah lewat' }) workingDays: number;
-  @ApiProperty({ example: 90, description: '(present + late) / workingDays × 100' })
+  @ApiProperty({
+    example: 20,
+    description:
+      'Hari dihitung: hari kerja terjadwal yang sudah lewat sejak bergabung + hari lain yang punya record',
+  })
+  workingDays: number;
+  @ApiProperty({ example: 90, description: '(present + late) / workingDays × 100, maks 100' })
   attendanceRate: number;
 }
 

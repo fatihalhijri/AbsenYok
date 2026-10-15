@@ -13,6 +13,10 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
+import {
+  IsOptionalNonNull,
+  PARTIAL_REJECT_NULL,
+} from '@/common/validators/is-optional-non-null.validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -49,19 +53,19 @@ export class CreateLocationDto {
   longitude: number;
 
   @ApiPropertyOptional({ example: 100, minimum: 10, maximum: 5000, default: 100 })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'Radius harus bilangan bulat (meter)' })
   @Min(10, { message: 'Radius minimal 10 meter' })
   @Max(5000, { message: 'Radius maksimal 5000 meter' })
   radiusMeters?: number;
 
   @ApiPropertyOptional({ example: true, default: true })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsBoolean({ message: 'isActive harus boolean' })
   isActive?: boolean;
 }
 
-export class UpdateLocationDto extends PartialType(CreateLocationDto) {}
+export class UpdateLocationDto extends PartialType(CreateLocationDto, PARTIAL_REJECT_NULL) {}
 
 export const LOCATION_SORT_FIELDS = ['name', 'createdAt'] as const;
 

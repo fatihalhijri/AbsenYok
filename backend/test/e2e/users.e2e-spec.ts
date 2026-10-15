@@ -193,6 +193,38 @@ describe('Users (e2e)', () => {
       expect(errorFields(res.body)).toEqual(['departmentId', 'shiftId']);
     });
 
+    it('edit karyawan yang shift-nya sudah nonaktif: field lain tetap bisa diubah', async () => {
+      const created = await as(adminToken)
+        .post('/api/v1/users')
+        .send(newUser({ employeeCode: 'EMP78', email: 'emp78@e2e.test', shiftId }))
+        .expect(201);
+      const id = created.body.data.id as string;
+      await prisma.shift.update({ where: { id: shiftId }, data: { isActive: false } });
+      try {
+        // Form mengirim ulang shiftId lama yang kini nonaktif → tidak boleh ditolak.
+        await as(adminToken)
+          .patch(`/api/v1/users/${id}`)
+          .send({ phone: '081299990000', shiftId })
+          .expect(200);
+        // Memilih shift nonaktif yang BERBEDA tetap ditolak.
+        const res = await as(adminToken)
+          .patch(`/api/v1/users/${id}`)
+          .send({ shiftId: inactiveShiftId })
+          .expect(400);
+        expect(errorFields(res.body)).toEqual(['shiftId']);
+      } finally {
+        await prisma.shift.update({ where: { id: shiftId }, data: { isActive: true } });
+      }
+    });
+
+    it('null pada field wajib → 400 VALIDATION_ERROR (bukan 500)', async () => {
+      const res = await as(adminToken)
+        .patch(`/api/v1/users/${ids.employee}`)
+        .send({ name: null })
+        .expect(400);
+      expect(errorFields(res.body)).toEqual(['name']);
+    });
+
     it('ADMIN tidak boleh mengubah/menonaktifkan ADMIN lain; SUPER_ADMIN boleh', async () => {
       await as(adminToken)
         .patch(`/api/v1/users/${ids.otherAdmin}`)

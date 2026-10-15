@@ -3,7 +3,6 @@ import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
-  IsOptional,
   IsString,
   Matches,
   Max,
@@ -11,6 +10,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { IsOptionalNonNull } from '@/common/validators/is-optional-non-null.validator';
 
 const trim = ({ value }: { value: unknown }): unknown =>
   typeof value === 'string' ? value.trim() : value;
@@ -21,7 +21,7 @@ const trim = ({ value }: { value: unknown }): unknown =>
  */
 export class UpdateSettingsDto {
   @ApiPropertyOptional({ example: 'PT AbsenYok Indonesia' })
-  @IsOptional()
+  @IsOptionalNonNull()
   @Transform(trim)
   @IsString({ message: 'company.name harus berupa teks' })
   @MinLength(2, { message: 'company.name minimal 2 karakter' })
@@ -32,7 +32,7 @@ export class UpdateSettingsDto {
     example: 'https://cdn.example.com/logo.png',
     description: 'URL http(s), path /..., atau kosong',
   })
-  @IsOptional()
+  @IsOptionalNonNull()
   @Transform(trim)
   @IsString({ message: 'company.logoUrl harus berupa teks' })
   @MaxLength(255, { message: 'company.logoUrl maksimal 255 karakter' })
@@ -42,31 +42,31 @@ export class UpdateSettingsDto {
   'company.logoUrl'?: string;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsBoolean({ message: 'attendance.geofenceEnabled harus boolean' })
   'attendance.geofenceEnabled'?: boolean;
 
   @ApiPropertyOptional({ example: true })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsBoolean({ message: 'attendance.deviceBindingEnabled harus boolean' })
   'attendance.deviceBindingEnabled'?: boolean;
 
   @ApiPropertyOptional({ example: 5, minimum: 0, maximum: 240 })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'attendance.minCheckoutGapMinutes harus bilangan bulat' })
   @Min(0, { message: 'attendance.minCheckoutGapMinutes minimal 0' })
   @Max(240, { message: 'attendance.minCheckoutGapMinutes maksimal 240' })
   'attendance.minCheckoutGapMinutes'?: number;
 
   @ApiPropertyOptional({ example: 12, minimum: 0, maximum: 365 })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'leave.annualQuota harus bilangan bulat' })
   @Min(0, { message: 'leave.annualQuota minimal 0' })
   @Max(365, { message: 'leave.annualQuota maksimal 365' })
   'leave.annualQuota'?: number;
 
   @ApiPropertyOptional({ example: 14, minimum: 1, maximum: 90 })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'leave.maxRangeDays harus bilangan bulat' })
   @Min(1, { message: 'leave.maxRangeDays minimal 1' })
   @Max(90, { message: 'leave.maxRangeDays maksimal 90' })

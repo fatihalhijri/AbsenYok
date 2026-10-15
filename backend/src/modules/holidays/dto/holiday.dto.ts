@@ -14,6 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { IsCalendarDate } from '@/common/validators/is-calendar-date.validator';
+import { PARTIAL_REJECT_NULL } from '@/common/validators/is-optional-non-null.validator';
 
 export const MAX_BULK_HOLIDAYS = 100;
 
@@ -30,7 +31,7 @@ export class CreateHolidayDto {
   name: string;
 }
 
-export class UpdateHolidayDto extends PartialType(CreateHolidayDto) {}
+export class UpdateHolidayDto extends PartialType(CreateHolidayDto, PARTIAL_REJECT_NULL) {}
 
 export class BulkCreateHolidayDto {
   @ApiProperty({

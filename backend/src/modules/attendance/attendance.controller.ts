@@ -24,7 +24,7 @@ import {
   MyTodayEntity,
   ScanResultEntity,
 } from './entities/attendance.entity';
-import { ScanThrottleGuard } from './scan-throttle.guard';
+import { PersonalScanThrottleGuard, ScanThrottleGuard } from './scan-throttle.guard';
 
 const SCAN_ERROR_EXAMPLE = {
   success: false,
@@ -78,7 +78,7 @@ export class AttendanceController {
 
   @Post('personal-scan')
   @Roles(Role.SUPER_ADMIN, Role.ADMIN)
-  @UseGuards(ScanThrottleGuard)
+  @UseGuards(PersonalScanThrottleGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Scan QR personal karyawan (mode cadangan, oleh petugas)',

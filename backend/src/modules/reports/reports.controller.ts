@@ -1,5 +1,6 @@
 import { PassThrough } from 'node:stream';
 import { Controller, Get, HttpStatus, Logger, Query, StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiProduces, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Role } from '@/common/constants/roles';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
@@ -13,6 +14,7 @@ import {
 } from './dto/report.dto';
 import { MonthlyReportEntity } from './entities/report.entity';
 import { PdfReportBuilder } from './pdf-report.builder';
+import { failDownload } from './download-error';
 import { safeFilePart } from './report-format';
 import { type MonthlyReportRow, ReportsService } from './reports.service';
 import { XLSX_MIME, XlsxReportBuilder } from './xlsx-report.builder';
@@ -155,7 +157,10 @@ export class ReportsController {
     });
   }
 
-  /** XLSX ditulis langsung ke respons (streaming); kegagalan di tengah jalan memutus unduhan. */
+  /**
+   * XLSX ditulis langsung ke respons (streaming). Kegagalan sebelum data terkirim → 500 format
+   * standar; kegagalan di tengah jalan → koneksi diputus sehingga unduhan gagal (lihat failDownload).
+   */
   private stream(filename: string, write: (output: PassThrough) => Promise<void>): StreamableFile {
     const output = new PassThrough();
     write(output).catch((error: unknown) => {
@@ -165,6 +170,11 @@ export class ReportsController {
       );
       output.destroy(error instanceof Error ? error : new Error(String(error)));
     });
-    return new StreamableFile(output, { type: XLSX_MIME, disposition: attachment(filename) });
+    return (
+      new StreamableFile(output, { type: XLSX_MIME, disposition: attachment(filename) })
+        // Error sudah dicatat di atas; jangan dicatat dua kali oleh StreamableFile.
+        .setErrorLogger(() => undefined)
+        .setErrorHandler((_error, response) => failDownload(response as unknown as Response))
+    );
   }
 }

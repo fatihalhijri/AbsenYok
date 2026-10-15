@@ -6,7 +6,12 @@ export class MonthlyReportRowEntity {
   @ApiProperty({ example: 'Budi Santoso' }) name: string;
   @ApiPropertyOptional({ example: 'Teknologi Informasi', nullable: true, type: String })
   department: string | null;
-  @ApiProperty({ example: 22, description: 'Hari kerja yang sudah lewat' }) workingDays: number;
+  @ApiProperty({
+    example: 22,
+    description:
+      'Hari dihitung: hari kerja terjadwal yang sudah lewat sejak bergabung + hari lain yang punya record',
+  })
+  workingDays: number;
   @ApiProperty({ example: 18 }) present: number;
   @ApiProperty({ example: 2 }) late: number;
   @ApiProperty({ example: 41 }) totalLateMinutes: number;

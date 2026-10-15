@@ -198,13 +198,30 @@ describe('AuthService', () => {
       const countWhere = prisma.auditLog.count.mock.calls[0][0].where;
       const windowStart = countWhere.createdAt.gte as Date;
       expect(before - windowStart.getTime()).toBeGreaterThanOrEqual(15 * 60_000 - 1_000);
-      expect(countWhere).toMatchObject({ actorId: USER_ID, action: AuditAction.LOGIN_FAILED });
+      expect(countWhere).toMatchObject({
+        actorId: USER_ID,
+        action: AuditAction.LOGIN_FAILED,
+        // Hanya password salah; percobaan saat terkunci/nonaktif tidak dihitung.
+        metadata: { path: '$.reason', equals: 'INVALID_PASSWORD' },
+      });
 
       const { data } = prisma.user.update.mock.calls[0][0];
       expect(data.failedLoginAttempts).toBe(5);
       const lockMs = (data.lockedUntil as Date).getTime() - before;
       expect(lockMs).toBeGreaterThanOrEqual(15 * 60_000 - 1_000);
       expect(lockMs).toBeLessThanOrEqual(15 * 60_000 + 1_000);
+    });
+
+    it('jendela hitungan dimulai dari lockedUntil (kunci berakhir / dibuka admin)', async () => {
+      const lockedUntil = new Date(Date.now() - 60_000);
+      prisma.user.findFirst.mockResolvedValue(loginUser({ lockedUntil }));
+      prisma.auditLog.count.mockResolvedValue(1);
+
+      await expectBusinessError(
+        service.login({ email: 'budi@absenyok.id', password: 'Salah123' }, CLIENT),
+        ErrorCode.INVALID_CREDENTIALS,
+      );
+      expect(prisma.auditLog.count.mock.calls[0][0].where.createdAt.gte).toEqual(lockedUntil);
     });
 
     it('jendela hitungan dimulai setelah login sukses terakhir', async () => {
@@ -257,6 +274,7 @@ describe('AuthService', () => {
         userId: USER_ID,
         familyId: FAMILY_ID,
         revokedAt: null as Date | null,
+        replacedBy: null as string | null,
         expiresAt: signed.expiresAt,
       };
       return { signed, record };
@@ -294,9 +312,22 @@ describe('AuthService', () => {
       expect(session.user).not.toHaveProperty('isActive');
     });
 
-    it('reuse terdeteksi: seluruh family dicabut, audit, 401 REFRESH_TOKEN_REUSED', async () => {
+    it('token dicabut karena logout/ganti password (bukan rotasi) → TOKEN_INVALID tanpa alarm', async () => {
       const { signed, record } = await issueRefreshToken();
       prisma.refreshToken.findUnique.mockResolvedValue({ ...record, revokedAt: new Date() });
+
+      await expectBusinessError(service.refresh(signed.token, CLIENT), ErrorCode.TOKEN_INVALID);
+      expect(audit.log).not.toHaveBeenCalled();
+      expect(prisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('reuse terdeteksi: seluruh family dicabut, audit, 401 REFRESH_TOKEN_REUSED', async () => {
+      const { signed, record } = await issueRefreshToken();
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        ...record,
+        revokedAt: new Date(),
+        replacedBy: 'next-jti',
+      });
 
       const error = await expectBusinessError(
         service.refresh(signed.token, CLIENT),

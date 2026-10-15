@@ -346,7 +346,9 @@ export class AttendanceAdminService {
 
   /**
    * Koreksi admin: metrik dihitung ulang dari `shiftSnapshot`, method sisi yang diubah menjadi
-   * MANUAL, audit ATTENDANCE_CORRECTED berisi before/after/reason.
+   * MANUAL, audit ATTENDANCE_CORRECTED berisi before/after/reason. Optimistic lock pada
+   * `updatedAt`: bila record berubah sejak dibaca (mis. karyawan baru saja scan pulang),
+   * koreksi ditolak 409 agar perubahan itu tidak tertimpa.
    */
   async correct(
     id: string,
@@ -358,6 +360,7 @@ export class AttendanceAdminService {
       where: { id },
       select: {
         ...ATTENDANCE_SELECT,
+        updatedAt: true,
         user: {
           select: {
             id: true,
@@ -428,7 +431,7 @@ export class AttendanceAdminService {
       checkOutMethod: checkOutChanged ? (checkOutAt ? 'MANUAL' : null) : current.checkOutMethod,
       ...this.computeMetrics(status, rule, date, checkInAt, checkOutAt),
       note: dto.note === undefined ? current.note : dto.note,
-    } satisfies Prisma.AttendanceUncheckedUpdateInput;
+    } satisfies Prisma.AttendanceUncheckedUpdateManyInput;
 
     const before = auditSnapshot(current);
     const after = auditSnapshot({ ...current, ...data });
@@ -437,8 +440,8 @@ export class AttendanceAdminService {
     }
 
     const row = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.attendance.update({
-        where: { id },
+      const { count } = await tx.attendance.updateMany({
+        where: { id, updatedAt: current.updatedAt },
         data: {
           ...data,
           // Record lama tanpa snapshot (mis. dari cron) dibekukan dengan shift saat ini.
@@ -446,6 +449,14 @@ export class AttendanceAdminService {
             currentRule &&
             WORKED_STATUSES.has(status) && { shiftSnapshot: snapshotOf(currentRule) }),
         },
+      });
+      if (count === 0) {
+        throw conflictError(
+          'Data absensi berubah saat dikoreksi (mis. karyawan baru saja scan). Muat ulang lalu coba lagi.',
+        );
+      }
+      const updated = await tx.attendance.findUniqueOrThrow({
+        where: { id },
         select: ATTENDANCE_SELECT,
       });
       await this.audit.log(

@@ -16,6 +16,7 @@ import {
   toTzDateString,
 } from '@/common/utils/date.util';
 import { parseWorkDays } from '@/common/utils/time.util';
+import { ReportsService } from '@/modules/reports/reports.service';
 import { SettingsService } from '@/modules/settings/settings.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
@@ -316,6 +317,9 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
         isActive: false,
       });
 
+      // Semua akun skenario sudah bergabung sebelum Oktober (rekap menghitung sejak bergabung).
+      await prisma.user.updateMany({ data: { createdAt: new Date('2026-09-01T02:00:00Z') } });
+
       const day = toDbDate(MONDAY);
       await prisma.attendance.createMany({
         data: [
@@ -493,6 +497,51 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
         });
       });
 
+      it('karyawan baru setelah periode tidak tampil; karyawan terhapus dengan data periode tetap tampil', async () => {
+        const future = await createUser(prisma, {
+          employeeCode: 'E-Z1',
+          email: 'z1@dr.test',
+          role: Role.EMPLOYEE,
+          createdAt: new Date('2026-11-03T02:00:00Z'),
+        });
+        const removed = await createUser(prisma, {
+          employeeCode: 'E-Z2',
+          email: 'z2@dr.test',
+          role: Role.EMPLOYEE,
+          createdAt: new Date('2026-09-01T02:00:00Z'),
+          isActive: false,
+          deletedAt: new Date('2026-10-17T02:00:00Z'),
+        });
+        await createAttendance(prisma, {
+          userId: removed.id,
+          date: '2026-10-15',
+          status: 'PRESENT',
+          checkInAt: wib('2026-10-15', '07:55:00'),
+        });
+        try {
+          const res = await as(adminToken).get('/api/v1/reports/monthly?month=2026-10').expect(200);
+          const codes = (res.body.data.items as { employeeCode: string }[]).map(
+            (i) => i.employeeCode,
+          );
+          expect(codes).toContain('E-Z2');
+          expect(codes).not.toContain('E-Z1');
+
+          const daily = await as(adminToken)
+            .get('/api/v1/reports/daily/export?date=2026-10-15&format=xlsx')
+            .buffer(true)
+            .parse(binaryParser)
+            .expect(200);
+          const book = new ExcelJS.Workbook();
+          await book.xlsx.load(daily.body as ArrayBuffer);
+          const cells = JSON.stringify(book.worksheets[0].getSheetValues());
+          expect(cells).toContain('E-Z2');
+          expect(cells).not.toContain('E-Z1');
+        } finally {
+          await prisma.attendance.deleteMany({ where: { userId: removed.id } });
+          await prisma.user.deleteMany({ where: { id: { in: [future.id, removed.id] } } });
+        }
+      });
+
       it('export XLSX: 2 sheet, header tebal, freeze pane, autofilter, persen, legenda', async () => {
         const res = await as(adminToken)
           .get('/api/v1/reports/monthly/export?month=2026-10&format=xlsx')
@@ -592,6 +641,45 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
           'attachment; filename="kehadiran-E-P-2026-10.pdf"',
         );
         expect((res.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+      });
+    });
+
+    describe('export gagal di tengah jalan', () => {
+      afterEach(() => jest.restoreAllMocks());
+
+      it('gagal sebelum data terkirim → 500 format error standar, bukan file berisi pesan error', async () => {
+        jest
+          .spyOn(app.get(ReportsService), 'monthlyBatches')
+          .mockImplementation(async function* () {
+            await Promise.resolve();
+            if (Date.now() > 0) throw new Error('koneksi database putus: password=rahasia');
+            yield [];
+          });
+        const res = await as(adminToken)
+          .get('/api/v1/reports/monthly/export?month=2026-10&format=xlsx')
+          .expect(500);
+        expect(res.headers['content-type']).toMatch(/json/);
+        expect(res.headers['content-disposition']).toBeUndefined();
+        expect(res.body).toMatchObject({
+          success: false,
+          error: { code: 'INTERNAL_ERROR', message: 'Terjadi kesalahan pada server' },
+        });
+        expect(JSON.stringify(res.body)).not.toContain('rahasia');
+      });
+
+      it('gagal setelah sebagian file terkirim → koneksi diputus (unduhan gagal, bukan file terpotong 200)', async () => {
+        const service = app.get(ReportsService);
+        const original = service.monthlyBatches.bind(service);
+        jest.spyOn(service, 'monthlyBatches').mockImplementation(async function* (...args) {
+          for await (const batch of original(...args)) {
+            // Cukup banyak baris agar sebagian data ZIP ter-flush ke klien sebelum gagal.
+            for (let i = 0; i < 400; i += 1) yield batch;
+          }
+          throw new Error('koneksi database putus');
+        });
+        await expect(
+          as(adminToken).get('/api/v1/reports/monthly/export?month=2026-10&format=xlsx'),
+        ).rejects.toThrow(/socket hang up|aborted|ECONNRESET/);
       });
     });
 

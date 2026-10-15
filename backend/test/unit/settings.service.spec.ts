@@ -75,6 +75,24 @@ describe('SettingsService', () => {
     expect(prisma.setting.findMany).toHaveBeenCalledTimes(2);
   });
 
+  it('cache: hasil query lama yang selesai SETELAH invalidate tidak disimpan (race PATCH)', async () => {
+    const { service, prisma } = createService([]);
+    let releaseOld!: (rows: { key: string; value: string }[]) => void;
+    prisma.setting.findMany.mockImplementationOnce(
+      () => new Promise((resolve) => (releaseOld = resolve)),
+    );
+    const pending = service.get('attendance.geofenceEnabled');
+    // PATCH selesai & invalidate selagi query lama masih berjalan.
+    service.invalidate();
+    releaseOld([{ key: 'attendance.geofenceEnabled', value: 'true' }]);
+    await expect(pending).resolves.toBe(true);
+
+    prisma.setting.findMany.mockResolvedValue([
+      { key: 'attendance.geofenceEnabled', value: 'false' },
+    ]);
+    await expect(service.get('attendance.geofenceEnabled')).resolves.toBe(false);
+  });
+
   it('update: hanya key yang berubah disimpan, audit before/after, cache dibuang', async () => {
     const { service, prisma, audit } = createService([]);
     const client = { ipAddress: '10.0.0.1', userAgent: 'jest' };

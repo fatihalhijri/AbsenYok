@@ -463,6 +463,40 @@ describe('Attendance admin & recalculate (e2e)', () => {
         expect(errorFields(res.body)).toContain(field);
       });
 
+      it('record berubah saat koreksi berlangsung (scan pulang) → 409, perubahan scan tidak tertimpa', async () => {
+        const FRI = '2026-10-16'; // di luar minggu uji, belum punya record
+        const target = await createAttendance(prisma, {
+          userId: ids.absentee,
+          date: FRI,
+          status: 'PRESENT',
+          checkInAt: new Date(wib(FRI, '07:50:00')),
+          checkInMethod: 'KIOSK_QR',
+          shiftSnapshot: SNAPSHOT,
+        });
+        const checkOutAt = new Date(wib(FRI, '17:05:00'));
+        const delegate = prisma.attendance;
+        const original = delegate.findUnique.bind(delegate);
+        // Simulasi: tepat setelah admin membaca record, karyawan scan pulang.
+        const spy = jest.spyOn(delegate, 'findUnique').mockImplementationOnce(((args: never) =>
+          original(args).then(async (row: unknown) => {
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            await prisma.attendance.update({ where: { id: target.id }, data: { checkOutAt } });
+            return row;
+          })) as never);
+        try {
+          const res = await as(adminToken)
+            .patch(`/api/v1/attendance/${target.id}`)
+            .send({ checkInAt: wib(FRI, '07:45:00'), reason: 'Sesuai rekaman CCTV lobi utama' })
+            .expect(409);
+          expect(res.body.error.code).toBe('CONFLICT');
+        } finally {
+          spy.mockRestore();
+        }
+        const saved = await prisma.attendance.findUniqueOrThrow({ where: { id: target.id } });
+        expect(saved.checkOutAt).toEqual(checkOutAt);
+        expect(saved.checkInAt).toEqual(new Date(wib(FRI, '07:50:00')));
+      });
+
       it('ABSENT dengan menghapus jam → valid', async () => {
         const res = await as(adminToken)
           .patch(`/api/v1/attendance/${manualId}`)

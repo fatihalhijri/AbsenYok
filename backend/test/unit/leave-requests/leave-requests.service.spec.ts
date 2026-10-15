@@ -44,24 +44,27 @@ function leaveRow(overrides: Record<string, unknown> = {}) {
 }
 
 function setup() {
+  const leaveRequest = {
+    findFirst: jest.fn().mockResolvedValue(null),
+    findMany: jest.fn().mockResolvedValue([leaveRow()]),
+    findUnique: jest.fn().mockResolvedValue(leaveRow()),
+    create: jest.fn().mockResolvedValue(leaveRow()),
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    groupBy: jest.fn().mockResolvedValue([]),
+    count: jest.fn().mockResolvedValue(1),
+  };
+  /** Klien transaksi berbagi delegate leaveRequest dengan prisma; $queryRaw = kunci baris user. */
   const tx = {
-    leaveRequest: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    leaveRequest,
     attendance: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
   const prisma = {
     user: {
       findFirst: jest.fn().mockResolvedValue({ shift: { workDays: '1,2,3,4,5', isActive: true } }),
     },
     holiday: { findMany: jest.fn().mockResolvedValue([]) },
-    leaveRequest: {
-      findFirst: jest.fn().mockResolvedValue(null),
-      findMany: jest.fn().mockResolvedValue([leaveRow()]),
-      findUnique: jest.fn().mockResolvedValue(leaveRow()),
-      create: jest.fn().mockResolvedValue(leaveRow()),
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      groupBy: jest.fn().mockResolvedValue([]),
-      count: jest.fn().mockResolvedValue(1),
-    },
+    leaveRequest,
     $transaction: jest.fn((arg: unknown) =>
       typeof arg === 'function'
         ? (arg as (client: typeof tx) => Promise<unknown>)(tx)
@@ -262,6 +265,19 @@ describe('LeaveRequestsService', () => {
         code: ErrorCode.CONFLICT,
       });
       expect(storage.save).not.toHaveBeenCalled();
+    });
+
+    it('cek tumpang tindih + kuota + simpan berjalan di transaksi yang mengunci baris user', async () => {
+      const { service, prisma, tx } = setup();
+      await service.create(OWNER, dto({ type: 'ANNUAL' }), undefined);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      const lockSql = (tx.$queryRaw.mock.calls[0][0] as string[]).join('?');
+      expect(lockSql).toBe('SELECT id FROM users WHERE id = ? FOR UPDATE');
+      expect(tx.$queryRaw.mock.calls[0][1]).toBe(OWNER);
+      // Kunci diambil sebelum cek tumpang tindih.
+      expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.leaveRequest.findFirst.mock.invocationCallOrder[0],
+      );
     });
 
     it('penyimpanan DB gagal → file lampiran dihapus lagi', async () => {
@@ -468,7 +484,7 @@ describe('LeaveRequestsService', () => {
       expect(tx.leaveRequest.updateMany).not.toHaveBeenCalled();
     });
 
-    it('cuti tahunan dalam kuota → disetujui', async () => {
+    it('cuti tahunan dalam kuota → disetujui (kuota dicek di dalam transaksi berkunci)', async () => {
       const { service, prisma, tx } = setup();
       prisma.leaveRequest.findUnique.mockResolvedValue(leaveRow({ type: 'ANNUAL', totalDays: 2 }));
       prisma.leaveRequest.groupBy.mockResolvedValue([
@@ -476,6 +492,10 @@ describe('LeaveRequestsService', () => {
       ]);
       await service.approve(LEAVE_ID, ADMIN, undefined, CLIENT);
       expect(tx.leaveRequest.updateMany).toHaveBeenCalled();
+      expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+        prisma.leaveRequest.groupBy.mock.invocationCallOrder[0],
+      );
     });
 
     it('bukan PENDING → 409; race di dalam transaksi → 409 tanpa audit', async () => {

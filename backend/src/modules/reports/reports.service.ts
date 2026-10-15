@@ -3,6 +3,8 @@ import { ClockService } from '@/common/clock/clock.service';
 import { fieldError, notFoundError } from '@/common/exceptions/error-factories';
 import { type DateRange, eachDate, monthRange } from '@/common/utils/date-range.util';
 import {
+  addDays,
+  combineDateAndTime,
   formatLocalTime,
   fromDbDate,
   isoWeekday,
@@ -14,7 +16,9 @@ import { Prisma } from '@/generated/prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   computeMonthlySummary,
+  isVoidAbsence,
   type MonthlySummary,
+  trackingStart,
 } from '@/modules/attendance/attendance-summary';
 import { SettingsService } from '@/modules/settings/settings.service';
 import {
@@ -102,6 +106,7 @@ const EMPLOYEE_SELECT = {
   position: true,
   department: { select: { name: true } },
   shift: { select: { name: true, workDays: true, isActive: true } },
+  createdAt: true,
 } satisfies Prisma.UserSelect;
 
 type EmployeeRow = Prisma.UserGetPayload<{ select: typeof EMPLOYEE_SELECT }>;
@@ -123,6 +128,32 @@ type RecordRow = Prisma.AttendanceGetPayload<{ select: typeof RECORD_SELECT }>;
 
 const workDaysOf = (employee: EmployeeRow) =>
   employee.shift?.isActive ? parseWorkDays(employee.shift.workDays) : null;
+
+/** Tanggal lokal karyawan bergabung (akun dibuat). */
+const joinedOnOf = (employee: EmployeeRow) => toTzDateString(employee.createdAt);
+
+/**
+ * Karyawan yang tampil di laporan periode `[from, to]`: EMPLOYEE aktif yang sudah bergabung
+ * sebelum periode berakhir, ATAU siapa pun (nonaktif/dihapus) yang punya data absensi di periode
+ * tersebut — data absensi tidak pernah hilang dari laporan walau akunnya dihapus.
+ */
+function reportEmployeesWhere(
+  range: { from: string; to: string },
+  departmentId?: string,
+): Prisma.UserWhereInput {
+  return {
+    role: 'EMPLOYEE',
+    departmentId,
+    OR: [
+      {
+        isActive: true,
+        deletedAt: null,
+        createdAt: { lt: combineDateAndTime(addDays(range.to, 1), '00:00') },
+      },
+      { attendances: { some: { date: { gte: toDbDate(range.from), lte: toDbDate(range.to) } } } },
+    ],
+  };
+}
 
 /** Data laporan rekap, harian, dan pribadi (dipakai JSON, XLSX, dan PDF). */
 @Injectable()
@@ -168,12 +199,7 @@ export class ReportsService {
 
     for (;;) {
       const employees = await this.prisma.user.findMany({
-        where: {
-          role: 'EMPLOYEE',
-          deletedAt: null,
-          departmentId,
-          OR: [{ isActive: true }, { attendances: { some: { date: dateFilter } } }],
-        },
+        where: reportEmployeesWhere(ctx.range, departmentId),
         orderBy: { employeeCode: 'asc' },
         take: REPORT_BATCH_SIZE,
         ...(cursor && { cursor: { employeeCode: cursor }, skip: 1 }),
@@ -197,6 +223,7 @@ export class ReportsService {
           holidays: holidaySet,
           range: ctx.range,
           today: ctx.today,
+          joinedOn: joinedOnOf(employee),
         });
         return {
           row: {
@@ -206,7 +233,7 @@ export class ReportsService {
             department: employee.department?.name ?? null,
             ...summary,
           },
-          codes: this.dailyCodes(ctx, own, workDays),
+          codes: this.dailyCodes(ctx, own, workDays, joinedOnOf(employee)),
         };
       });
 
@@ -230,7 +257,7 @@ export class ReportsService {
   async longestNameLength(departmentId?: string): Promise<number> {
     const rows = await this.prisma.$queryRaw<{ length: unknown }[]>`
       SELECT MAX(CHAR_LENGTH(name)) AS length FROM users
-      WHERE role = 'EMPLOYEE' AND deletedAt IS NULL
+      WHERE role = 'EMPLOYEE'
       ${departmentId ? Prisma.sql`AND departmentId = ${departmentId}` : Prisma.empty}`;
     return Number(rows[0]?.length ?? 0);
   }
@@ -255,11 +282,7 @@ export class ReportsService {
 
     for (;;) {
       const employees = await this.prisma.user.findMany({
-        where: {
-          role: 'EMPLOYEE',
-          deletedAt: null,
-          OR: [{ isActive: true }, { attendances: { some: { date: day } } }],
-        },
+        where: reportEmployeesWhere({ from: ctx.date, to: ctx.date }),
         orderBy: { employeeCode: 'asc' },
         take: REPORT_BATCH_SIZE,
         ...(cursor && { cursor: { employeeCode: cursor }, skip: 1 }),
@@ -340,9 +363,14 @@ export class ReportsService {
     });
     const byDate = new Map(records.map((r) => [fromDbDate(r.date), r]));
     const workDays = workDaysOf(employee);
+    const holidaySet = new Set(context.holidays.keys());
+    const start = trackingStart(context.range, joinedOnOf(employee), byDate.keys());
 
     const days: PersonalDayRow[] = eachDate(context.range).map((date) => {
-      const record = byDate.get(date);
+      const found = byDate.get(date);
+      // ABSENT pada tanggal yang belakangan dijadikan libur ditampilkan sebagai libur.
+      const record =
+        found && !isVoidAbsence({ date, status: found.status }, holidaySet) ? found : undefined;
       const isWorkDay = workDays?.includes(isoWeekday(date)) ?? false;
       const status = record
         ? STATUS_LABELS[record.status]
@@ -350,11 +378,13 @@ export class ReportsService {
           ? `Libur: ${context.holidays.get(date)}`
           : !isWorkDay
             ? 'Libur'
-            : date > context.today
-              ? ''
-              : date === context.today
-                ? 'Belum absen'
-                : 'Tidak ada data';
+            : date < start
+              ? 'Belum bergabung'
+              : date > context.today
+                ? ''
+                : date === context.today
+                  ? 'Belum absen'
+                  : 'Tidak ada data';
       return {
         date,
         status,
@@ -378,9 +408,10 @@ export class ReportsService {
       summary: computeMonthlySummary({
         records: records.map((r) => ({ ...r, date: fromDbDate(r.date) })),
         workDays,
-        holidays: new Set(context.holidays.keys()),
+        holidays: holidaySet,
         range: context.range,
         today: context.today,
+        joinedOn: joinedOnOf(employee),
       }),
       days,
     };
@@ -401,15 +432,18 @@ export class ReportsService {
     ctx: MonthContext,
     records: RecordRow[],
     workDays: number[] | null,
+    joinedOn: string,
   ): Record<string, string> {
     const byDate = new Map(records.map((r) => [fromDbDate(r.date), r.status]));
+    const start = trackingStart(ctx.range, joinedOn, byDate.keys());
     const codes: Record<string, string> = {};
     for (const date of eachDate(ctx.range)) {
       const status = byDate.get(date);
-      if (status) codes[date] = STATUS_CODES[status] ?? '';
-      else if (ctx.holidays.has(date)) codes[date] = HOLIDAY_CODE;
-      else if (workDays?.includes(isoWeekday(date)) && date < ctx.today) codes[date] = NO_DATA_CODE;
-      else codes[date] = '';
+      if (ctx.holidays.has(date) && (!status || status === 'ABSENT')) codes[date] = HOLIDAY_CODE;
+      else if (status) codes[date] = STATUS_CODES[status] ?? '';
+      else if (workDays?.includes(isoWeekday(date)) && date >= start && date < ctx.today) {
+        codes[date] = NO_DATA_CODE;
+      } else codes[date] = '';
     }
     return codes;
   }

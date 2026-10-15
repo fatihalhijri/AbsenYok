@@ -35,7 +35,7 @@ export class AttendanceHistoryService {
       }),
       this.prisma.user.findUnique({
         where: { id: userId },
-        select: { shift: { select: { workDays: true, isActive: true } } },
+        select: { createdAt: true, shift: { select: { workDays: true, isActive: true } } },
       }),
       this.prisma.holiday.findMany({ where: { date: dateFilter }, select: { date: true } }),
     ]);
@@ -51,6 +51,7 @@ export class AttendanceHistoryService {
         holidays: new Set(holidays.map((holiday) => fromDbDate(holiday.date))),
         range,
         today,
+        joinedOn: user ? toTzDateString(user.createdAt) : null,
       }),
     };
   }

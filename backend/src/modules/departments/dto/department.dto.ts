@@ -2,6 +2,7 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
+import { PARTIAL_REJECT_NULL } from '@/common/validators/is-optional-non-null.validator';
 
 export class CreateDepartmentDto {
   @ApiProperty({
@@ -25,7 +26,7 @@ export class CreateDepartmentDto {
   name: string;
 }
 
-export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}
+export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto, PARTIAL_REJECT_NULL) {}
 
 export const DEPARTMENT_SORT_FIELDS = ['code', 'name', 'createdAt'] as const;
 

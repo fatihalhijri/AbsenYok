@@ -15,6 +15,7 @@ import {
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
 import { IsCalendarDate } from '@/common/validators/is-calendar-date.validator';
 import { AttendanceStatus } from '@/generated/prisma/client';
+import { IsOptionalNonNull } from '@/common/validators/is-optional-non-null.validator';
 
 const STATUSES = Object.values(AttendanceStatus);
 const STATUS_MESSAGE = `status harus salah satu dari: ${STATUSES.join(', ')}`;
@@ -166,7 +167,7 @@ export class CorrectAttendanceDto {
     enum: STATUSES,
     description: 'Bila tidak dikirim & jam masuk berubah, PRESENT/LATE dihitung ulang',
   })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsEnum(AttendanceStatus, { message: STATUS_MESSAGE })
   status?: AttendanceStatus;
 

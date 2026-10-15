@@ -37,9 +37,11 @@ type Employee =
   | 'days'
   | 'noShift'
   | 'onLeave'
+  | 'leaveAfterIn'
   | 'personal'
   | 'flood'
   | 'race'
+  | 'raceAbsent'
   | 'absent';
 
 describe('Attendance scan (e2e)', () => {
@@ -105,9 +107,11 @@ describe('Attendance scan (e2e)', () => {
       'days',
       'noShift',
       'onLeave',
+      'leaveAfterIn',
       'personal',
       'flood',
       'race',
+      'raceAbsent',
       'absent',
     ];
     for (const key of employees) {
@@ -435,6 +439,29 @@ describe('Attendance scan (e2e)', () => {
       });
     });
 
+    it('izin disetujui SETELAH check-in → check-in berikutnya ditolak, tapi check-out tetap boleh', async () => {
+      clock.set(wib(MONDAY, '07:55:00'));
+      await scan('leaveAfterIn', await kioskQr()).expect(200);
+
+      // Siang hari karyawan sakit; admin menyetujui izin untuk hari ini.
+      await createLeaveRequest(prisma, { userId: ids.leaveAfterIn, startDate: MONDAY });
+
+      clock.set(wib(MONDAY, '11:00:00'));
+      const today = await request(http)
+        .get('/api/v1/attendance/me/today')
+        .set(auth(tokens.leaveAfterIn))
+        .expect(200);
+      expect(today.body.data).toMatchObject({
+        leave: { type: 'SICK' },
+        canCheckIn: false,
+        canCheckOut: true,
+      });
+
+      const res = await scan('leaveAfterIn', await kioskQr()).expect(200);
+      expect(res.body.data).toMatchObject({ type: 'CHECK_OUT', attendance: { status: 'PRESENT' } });
+      expect(res.body.data.attendance.checkOutAt).toEqual(expect.any(String));
+    });
+
     it('tanpa shift → NO_SHIFT_ASSIGNED', async () => {
       const res = await scan('noShift', await kioskQr()).expect(422);
       expect(res.body.error.code).toBe('NO_SHIFT_ASSIGNED');
@@ -533,6 +560,21 @@ describe('Attendance scan (e2e)', () => {
 
       // User lain tidak terdampak.
       await scan('late', 'sampah').expect(422);
+    });
+
+    it('dua scan masuk bersamaan pada record ABSENT → hanya satu berhasil, jam masuk tidak ditimpa', async () => {
+      await createAttendance(prisma, { userId: ids.raceAbsent, date: MONDAY });
+      clock.set(wib(MONDAY, '07:58:00'));
+      const token = await kioskQr();
+      const results = await Promise.all([scan('raceAbsent', token), scan('raceAbsent', token)]);
+
+      expect(results.map((res) => res.status).sort()).toEqual([200, 409]);
+      const rejected = results.find((res) => res.status === 409);
+      expect(rejected?.body.error.code).toBe('ALREADY_CHECKED_IN');
+      const successLogs = await prisma.attendanceScanLog.count({
+        where: { userId: ids.raceAbsent, success: true },
+      });
+      expect(successLogs).toBe(1);
     });
 
     it('dua scan masuk bersamaan → hanya satu record, satu ditolak', async () => {

@@ -13,6 +13,10 @@ import {
   MinLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '@/common/dto/pagination-query.dto';
+import {
+  IsOptionalNonNull,
+  PARTIAL_REJECT_NULL,
+} from '@/common/validators/is-optional-non-null.validator';
 
 export const MIN_QR_INTERVAL_SECONDS = 10;
 export const MAX_QR_INTERVAL_SECONDS = 300;
@@ -35,7 +39,7 @@ export class CreateKioskDto {
     maximum: MAX_QR_INTERVAL_SECONDS,
     description: 'Default: env QR_KIOSK_INTERVAL_SECONDS',
   })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsInt({ message: 'Interval QR harus bilangan bulat (detik)' })
   @Min(MIN_QR_INTERVAL_SECONDS, { message: `Interval QR minimal ${MIN_QR_INTERVAL_SECONDS} detik` })
   @Max(MAX_QR_INTERVAL_SECONDS, {
@@ -44,9 +48,9 @@ export class CreateKioskDto {
   qrIntervalSeconds?: number;
 }
 
-export class UpdateKioskDto extends PartialType(CreateKioskDto) {
+export class UpdateKioskDto extends PartialType(CreateKioskDto, PARTIAL_REJECT_NULL) {
   @ApiPropertyOptional({ example: true })
-  @IsOptional()
+  @IsOptionalNonNull()
   @IsBoolean({ message: 'isActive harus boolean' })
   isActive?: boolean;
 }
@@ -60,7 +64,7 @@ export class KioskQueryDto extends PaginationQueryDto {
   locationId?: string;
 
   @ApiPropertyOptional({ type: Boolean })
-  @IsOptional()
+  @IsOptionalNonNull()
   @Transform(({ value }: { value: unknown }) =>
     value === 'true' ? true : value === 'false' ? false : value,
   )

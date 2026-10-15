@@ -28,6 +28,11 @@ export const KIOSK_CACHE_TTL_MS = 60_000;
 @Injectable()
 export class KioskCacheService {
   private readonly entries = new Map<string, { kiosk: CachedKiosk; expiresAt: number }>();
+  /**
+   * Naik setiap invalidate. Query yang dimulai sebelum rotasi secret/nonaktifkan kiosk tidak
+   * boleh menyimpan data lamanya ke cache (QR lama harus langsung tidak berlaku).
+   */
+  private generation = 0;
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -35,6 +40,7 @@ export class KioskCacheService {
     const cached = this.entries.get(kioskId);
     if (cached && cached.expiresAt > now) return cached.kiosk;
 
+    const generation = this.generation;
     const row = await this.prisma.kiosk.findUnique({
       where: { id: kioskId },
       select: {
@@ -68,16 +74,20 @@ export class KioskCacheService {
         longitude: row.location.longitude.toNumber(),
       },
     };
-    this.entries.set(kioskId, { kiosk, expiresAt: now + KIOSK_CACHE_TTL_MS });
+    if (generation === this.generation) {
+      this.entries.set(kioskId, { kiosk, expiresAt: now + KIOSK_CACHE_TTL_MS });
+    }
     return kiosk;
   }
 
   invalidate(kioskId: string): void {
+    this.generation += 1;
     this.entries.delete(kioskId);
   }
 
   /** Lokasi berubah memengaruhi banyak kiosk sekaligus. */
   invalidateAll(): void {
+    this.generation += 1;
     this.entries.clear();
   }
 }

@@ -5,7 +5,7 @@ import type { AppConfigService } from '@/config/app.config';
 import type { Env } from '@/config/env.schema';
 import { KioskCacheService } from '@/modules/qr/kiosk-cache.service';
 import { parseQrToken } from '@/modules/qr/qr-token';
-import { QrService } from '@/modules/qr/qr.service';
+import { personalReplayTtlMs, QrService } from '@/modules/qr/qr.service';
 import type { PrismaService } from '@/prisma/prisma.service';
 
 const KIOSK_A = '11111111-1111-4111-8111-111111111111';
@@ -310,11 +310,11 @@ describe('QrService', () => {
       );
     });
 
-    it('replay token personal setelah dipakai → QR_ALREADY_USED', () => {
+    it('replay token personal setelah dipakai → QR_ALREADY_USED (dipesan saat verifikasi)', () => {
       const { token } = qr.generatePersonalToken(USER_ID, NOW);
-      const verified = qr.verifyPersonalToken(token, NOW);
-      qr.markPersonalTokenUsed(verified.userId, verified.window, NOW);
+      qr.verifyPersonalToken(token, NOW);
 
+      // Request kedua ditolak walau request pertama belum selesai disimpan.
       expectThrowsCode(() => qr.verifyPersonalToken(token, at(5)), ErrorCode.QR_ALREADY_USED);
       // Token window berikutnya (QR baru di layar HP) tetap bisa dipakai.
       expect(
@@ -323,9 +323,21 @@ describe('QrService', () => {
     });
 
     it('penanda replay kedaluwarsa setelah 120 detik (token sudah expired juga)', () => {
-      const { token, window } = qr.generatePersonalToken(USER_ID, NOW);
-      qr.markPersonalTokenUsed(USER_ID, window, NOW);
+      const { token } = qr.generatePersonalToken(USER_ID, NOW);
+      qr.verifyPersonalToken(token, NOW);
       expectThrowsCode(() => qr.verifyPersonalToken(token, at(121)), ErrorCode.QR_EXPIRED);
+    });
+
+    it('scan gagal → pesanan dilepas, token yang sama bisa dicoba lagi', () => {
+      const { token } = qr.generatePersonalToken(USER_ID, NOW);
+      const verified = qr.verifyPersonalToken(token, NOW);
+      qr.releasePersonalToken(verified);
+      expect(qr.verifyPersonalToken(token, at(5)).userId).toBe(USER_ID);
+    });
+
+    it('TTL anti-replay = 2 × interval (mencakup seluruh masa berlaku token)', () => {
+      expect(personalReplayTtlMs(60)).toBe(120_000);
+      expect(personalReplayTtlMs(90)).toBe(180_000);
     });
   });
 });

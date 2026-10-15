@@ -94,6 +94,11 @@ function toView({ startDate, endDate, attachmentUrl, ...row }: LeaveRow): LeaveV
   };
 }
 
+/** Kunci baris user sampai transaksi selesai (serialisasi pengajuan/approval per karyawan). */
+async function lockUser(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+}
+
 const yearRange = (year: number) => ({
   gte: toDbDate(`${year}-01-01`),
   lte: toDbDate(`${year}-12-31`),
@@ -156,7 +161,57 @@ export class LeaveRequestsService {
     );
     if (totalDays === 0) throw fieldError('startDate', 'Rentang tanggal tidak mencakup hari kerja');
 
-    const overlap = await this.prisma.leaveRequest.findFirst({
+    const attachment = file ? await this.storage.validate(file) : null;
+    if (dto.type === 'SICK' && totalDays > 1 && !attachment) {
+      throw fieldError('attachment', 'Sakit lebih dari 1 hari wajib melampirkan surat dokter');
+    }
+
+    // Cek tumpang tindih + kuota + simpan dalam satu transaksi yang mengunci baris user:
+    // dua pengajuan bersamaan (double-tap) diproses bergantian, bukan sama-sama lolos.
+    let key: string | null = null;
+    try {
+      const row = await this.prisma.$transaction(async (tx) => {
+        await lockUser(tx, userId);
+        await this.assertNoOverlap(tx, userId, dto);
+        if (dto.type === 'ANNUAL') {
+          const quota = await this.quota(userId, Number(dto.startDate.slice(0, 4)), tx);
+          const available = quota.quota - quota.used - quota.pending;
+          if (totalDays > available) {
+            throw fieldError(
+              'type',
+              `Sisa cuti tahunan tidak cukup: tersedia ${Math.max(0, available)} hari ` +
+                `(termasuk pengajuan yang menunggu), diajukan ${totalDays} hari`,
+            );
+          }
+        }
+        // File disimpan setelah semua validasi lolos; dihapus lagi bila transaksi gagal.
+        key = attachment ? await this.storage.save(attachment) : null;
+        return tx.leaveRequest.create({
+          data: {
+            userId,
+            type: dto.type,
+            startDate: toDbDate(dto.startDate),
+            endDate: toDbDate(dto.endDate),
+            totalDays,
+            reason: dto.reason,
+            attachmentUrl: key,
+          },
+          select: LEAVE_SELECT,
+        });
+      });
+      return toView(row);
+    } catch (error) {
+      if (key) await this.storage.remove(key);
+      throw error;
+    }
+  }
+
+  private async assertNoOverlap(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    dto: CreateLeaveRequestDto,
+  ): Promise<void> {
+    const overlap = await tx.leaveRequest.findFirst({
       where: {
         userId,
         status: { in: ['PENDING', 'APPROVED'] },
@@ -177,44 +232,6 @@ export class LeaveRequestsService {
         },
       ]);
     }
-
-    const attachment = file ? await this.storage.validate(file) : null;
-    if (dto.type === 'SICK' && totalDays > 1 && !attachment) {
-      throw fieldError('attachment', 'Sakit lebih dari 1 hari wajib melampirkan surat dokter');
-    }
-
-    if (dto.type === 'ANNUAL') {
-      const quota = await this.quota(userId, Number(dto.startDate.slice(0, 4)));
-      const available = quota.quota - quota.used - quota.pending;
-      if (totalDays > available) {
-        throw fieldError(
-          'type',
-          `Sisa cuti tahunan tidak cukup: tersedia ${Math.max(0, available)} hari ` +
-            `(termasuk pengajuan yang menunggu), diajukan ${totalDays} hari`,
-        );
-      }
-    }
-
-    // File disimpan setelah semua validasi lolos; dihapus lagi bila penyimpanan DB gagal.
-    const key = attachment ? await this.storage.save(attachment) : null;
-    try {
-      const row = await this.prisma.leaveRequest.create({
-        data: {
-          userId,
-          type: dto.type,
-          startDate: toDbDate(dto.startDate),
-          endDate: toDbDate(dto.endDate),
-          totalDays,
-          reason: dto.reason,
-          attachmentUrl: key,
-        },
-        select: LEAVE_SELECT,
-      });
-      return toView(row);
-    } catch (error) {
-      if (key) await this.storage.remove(key);
-      throw error;
-    }
   }
 
   async myList(userId: string, query: MyLeaveQueryDto): Promise<LeaveView[]> {
@@ -228,10 +245,14 @@ export class LeaveRequestsService {
   }
 
   /** `used` = total hari ANNUAL yang APPROVED pada tahun tersebut (§9). */
-  async quota(userId: string, year: number = this.currentYear()): Promise<LeaveQuota> {
+  async quota(
+    userId: string,
+    year: number = this.currentYear(),
+    client: Prisma.TransactionClient = this.prisma,
+  ): Promise<LeaveQuota> {
     const [quota, grouped] = await Promise.all([
       this.settings.get('leave.annualQuota'),
-      this.prisma.leaveRequest.groupBy({
+      client.leaveRequest.groupBy({
         by: ['status'],
         where: {
           userId,
@@ -274,21 +295,24 @@ export class LeaveRequestsService {
     const leave = await this.findRow(id);
     this.assertPending(leave.status, 'disetujui');
 
-    if (leave.type === 'ANNUAL') {
-      const quota = await this.quota(leave.userId, Number(fromDbDate(leave.startDate).slice(0, 4)));
-      if (quota.used + leave.totalDays > quota.quota) {
-        throw conflictError(
-          `Kuota cuti tahunan karyawan tidak cukup (terpakai ${quota.used} dari ${quota.quota} hari)`,
-        );
-      }
-    }
-
     const now = this.clock.now();
     const today = toTzDateString(now);
     const lastPastDate = fromDbDate(leave.endDate) < today ? fromDbDate(leave.endDate) : today;
     const status = LEAVE_ATTENDANCE_STATUS[leave.type];
 
     await this.prisma.$transaction(async (tx) => {
+      if (leave.type === 'ANNUAL') {
+        // Kunci user: dua approval cuti tahunan bersamaan tidak boleh sama-sama melewati kuota.
+        await lockUser(tx, leave.userId);
+        const year = Number(fromDbDate(leave.startDate).slice(0, 4));
+        const quota = await this.quota(leave.userId, year, tx);
+        if (quota.used + leave.totalDays > quota.quota) {
+          throw conflictError(
+            `Kuota cuti tahunan karyawan tidak cukup (terpakai ${quota.used} dari ${quota.quota} hari)`,
+          );
+        }
+      }
+
       const { count } = await tx.leaveRequest.updateMany({
         where: { id, status: 'PENDING' },
         data: {

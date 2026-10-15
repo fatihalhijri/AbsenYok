@@ -10,7 +10,7 @@ import { AttendanceService } from './attendance.service';
 import { DeviceBindingService } from './device-binding.service';
 import { GeofenceService } from './geofence.service';
 import { ScanLogService } from './scan-log.service';
-import { ScanThrottleGuard } from './scan-throttle.guard';
+import { PersonalScanThrottleGuard, ScanThrottleGuard } from './scan-throttle.guard';
 
 @Module({
   // Urutan penting: rute statis AttendanceController didaftarkan sebelum `:id` milik admin.
@@ -23,6 +23,7 @@ import { ScanThrottleGuard } from './scan-throttle.guard';
     DeviceBindingService,
     ScanLogService,
     ScanThrottleGuard,
+    PersonalScanThrottleGuard,
     AttendanceHistoryService,
     AttendanceAdminService,
     AttendanceRecalculateService,

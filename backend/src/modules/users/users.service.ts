@@ -124,7 +124,15 @@ export class UsersService {
         throw forbiddenError('Anda tidak dapat mengubah role akun sendiri');
       assertCanAssignRole(actor, dto.role);
     }
-    await this.integrity.assertRelations(dto);
+    // Relasi yang tidak berubah tidak divalidasi ulang: karyawan dengan shift/lokasi yang
+    // sudah dinonaktifkan tetap bisa diedit field lainnya.
+    const changed = <K extends 'departmentId' | 'shiftId' | 'locationId'>(key: K) =>
+      dto[key] === target[key] ? undefined : dto[key];
+    await this.integrity.assertRelations({
+      departmentId: changed('departmentId'),
+      shiftId: changed('shiftId'),
+      locationId: changed('locationId'),
+    });
     await this.integrity.assertUniqueIdentity(
       { email: dto.email, employeeCode: dto.employeeCode },
       id,
@@ -209,7 +217,10 @@ export class UsersService {
     return toUserDetail(row);
   }
 
-  /** Password baru + buka kunci akun + cabut semua sesi. */
+  /**
+   * Password baru + buka kunci akun + cabut semua sesi. `lockedUntil = now` (bukan null)
+   * menjadi awal jendela hitung lockout, sehingga kegagalan sebelum reset tidak dihitung lagi.
+   */
   async resetPassword(
     id: string,
     newPassword: string,
@@ -224,7 +235,7 @@ export class UsersService {
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
         where: { id },
-        data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+        data: { passwordHash, failedLoginAttempts: 0, lockedUntil: now },
       });
       const { count } = await tx.refreshToken.updateMany({
         where: { userId: id, revokedAt: null },

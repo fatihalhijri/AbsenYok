@@ -18,6 +18,8 @@ import { TokenService } from './token.service';
 import { USER_PROFILE_SELECT, type UserProfile, toUserProfile } from './user-profile';
 
 const MINUTE_MS = 60_000;
+/** `metadata.reason` audit LOGIN_FAILED yang dihitung untuk lockout. */
+const INVALID_PASSWORD_REASON = 'INVALID_PASSWORD';
 
 /** Hasil login/refresh. `refreshToken` hanya untuk cookie — tidak pernah dikirim di body. */
 export interface AuthSession {
@@ -168,8 +170,10 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Rotasi refresh token. Token yang sudah dicabut dipakai lagi → seluruh family dicabut
-   * (indikasi pencurian token) dan user wajib login ulang.
+   * Rotasi refresh token. Token yang sudah **dirotasi** (`replacedBy` terisi) dipakai lagi →
+   * seluruh family dicabut (indikasi pencurian token) dan user wajib login ulang. Token yang
+   * dicabut karena logout/ganti password/reset admin/nonaktif cukup ditolak TOKEN_INVALID
+   * (bukan alarm pencurian).
    */
   async refresh(refreshToken: string | undefined, client: ClientInfo): Promise<AuthSession> {
     if (!refreshToken) throw tokenInvalid();
@@ -179,7 +183,14 @@ export class AuthService implements OnModuleInit {
 
     const record = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: this.tokens.hashToken(refreshToken) },
-      select: { id: true, userId: true, familyId: true, revokedAt: true, expiresAt: true },
+      select: {
+        id: true,
+        userId: true,
+        familyId: true,
+        revokedAt: true,
+        replacedBy: true,
+        expiresAt: true,
+      },
     });
     if (
       !record ||
@@ -192,6 +203,7 @@ export class AuthService implements OnModuleInit {
 
     const now = new Date();
     if (record.revokedAt) {
+      if (!record.replacedBy) throw tokenInvalid();
       await this.handleRefreshTokenReuse(record, client);
       throw refreshTokenReused();
     }
@@ -328,8 +340,9 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Hitung kegagalan login sejak batas jendela (15 menit terakhir, setelah login sukses
-   * terakhir, atau setelah kunci sebelumnya berakhir). Kegagalan ke-5 → kunci 15 menit.
+   * Hitung kegagalan **password salah** sejak batas jendela: 15 menit terakhir, login sukses
+   * terakhir, atau `lockedUntil` (akhir kunci sebelumnya / saat admin membuka kunci).
+   * Percobaan saat akun terkunci/nonaktif tidak ikut dihitung. Kegagalan ke-5 → kunci 15 menit.
    */
   private async registerFailedLogin(
     user: { id: string; lastLoginAt: Date | null; lockedUntil: Date | null },
@@ -349,7 +362,7 @@ export class AuthService implements OnModuleInit {
           action: AuditAction.LOGIN_FAILED,
           entity: 'User',
           entityId: user.id,
-          metadata: { reason: 'INVALID_PASSWORD' },
+          metadata: { reason: INVALID_PASSWORD_REASON },
           ip: client.ipAddress,
           userAgent: client.userAgent,
         },
@@ -361,6 +374,7 @@ export class AuthService implements OnModuleInit {
           actorId: user.id,
           action: AuditAction.LOGIN_FAILED,
           createdAt: { gte: windowStart },
+          metadata: { path: '$.reason', equals: INVALID_PASSWORD_REASON },
         },
       });
       const shouldLock = failures >= MAX_FAILED_LOGIN_ATTEMPTS;

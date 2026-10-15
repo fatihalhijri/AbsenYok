@@ -25,6 +25,8 @@ export interface PublicSettings {
 @Injectable()
 export class SettingsService {
   private cache: Map<string, string> | null = null;
+  /** Naik setiap invalidate; hasil query yang dimulai sebelum invalidate tidak disimpan ke cache. */
+  private generation = 0;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -93,6 +95,7 @@ export class SettingsService {
   }
 
   invalidate(): void {
+    this.generation += 1;
     this.cache = null;
   }
 
@@ -104,11 +107,14 @@ export class SettingsService {
 
   private async load(): Promise<Map<string, string>> {
     if (this.cache) return this.cache;
+    const generation = this.generation;
     const rows = await this.prisma.setting.findMany({
       where: { key: { in: SETTING_KEYS } },
       select: { key: true, value: true },
     });
-    this.cache = new Map(rows.map((row) => [row.key, row.value]));
-    return this.cache;
+    const loaded = new Map(rows.map((row) => [row.key, row.value]));
+    // PATCH /settings yang selesai selagi query berjalan → nilai ini mungkin lama; jangan di-cache.
+    if (generation === this.generation) this.cache = loaded;
+    return loaded;
   }
 }

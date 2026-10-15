@@ -20,6 +20,23 @@ dan hal yang belum tuntas.
 | BE-09 | [Dashboard, Laporan & Export, Audit Log](backend/prompts/09-dashboard-reports-audit.md) | ✅ | 2026-10-14 | `2b2c523` | `pdfmake@0.3` (API `createPdf().getBuffer()`), font standar Helvetica; akses URL/file lokal diblokir kecuali nama font standar. PDF dibuat di memori (pdfmake tidak streaming); XLSX streaming per batch 500 karyawan (lebar kolom nama dari `MAX(CHAR_LENGTH(name))`). Cache dashboard 30 dtk berbasis URL & in-memory (perlu Redis bila multi-instance). E2E dashboard menjalankan `prisma/seed.ts` ke DB `_test` lalu membandingkan angka dengan query independen. LibreOffice tidak terpasang — XLSX diverifikasi dengan membaca ulang via exceljs; PDF diperiksa visual. |
 | BE-10 | [Testing, Hardening Keamanan, Docker & CI](backend/prompts/10-testing-security-docker.md) | ✅ | 2026-10-15 | `d7659f1` | CI GitHub Actions hijau pada run pertama (run 38711175210, ±2 menit 16 detik). Coverage unit ≥ 80% untuk auth/qr/leave-requests/aturan absensi (`coverageThreshold`); controller, module & DTO tidak dihitung (diuji e2e). Unit test kini hermetis (env dari `.env.example`; sebelumnya diam-diam butuh `.env` lokal). E2E reset DB via `prisma migrate reset --force` (Prisma 7 tanpa `--skip-seed`; di bawah agen AI butuh `PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION`). Image Docker 160 MB terkompresi / ±545 MB diekstrak — CLI Prisma (±220 MB, wajib untuk `migrate deploy`) membuat ukuran ekstrak < 300 MB mustahil tanpa memisahkan migrasi. `docker compose --profile app up` penuh baru bisa setelah Dockerfile frontend (FE-10); backend saja: `... up -d --build backend`. Port 3306 compose bentrok dengan MySQL Laragon. `npm` 11 wajib (lockfile npm 11 ditolak npm 10). `npm audit --omit=dev`: 0 high/critical (overrides `mariadb`, `mysql2`, `deepmerge-ts`), tersisa 4 moderate (`js-yaml` via swagger 11, `uuid` via exceljs). Throttler, cache kiosk/settings/dashboard & anti-replay QR masih in-memory — perlu Redis bila multi-instance. |
 
+### Audit & perbaikan backend (2026-10-15, _belum di-commit_)
+
+Audit menyeluruh terhadap BUSINESS-RULES/API-CONTRACT/QR-SECURITY; 14 perbaikan + test reproduksi:
+lockout hanya menghitung password salah & reset admin membuka jendela baru; `null` pada field wajib
+→ 400 (sebelumnya 500 / tersimpan "null"); izin/libur yang ditetapkan setelah check-in tidak lagi
+memblokir check-out; race check-in pada record ABSENT; export XLSX gagal → 500 JSON atau koneksi
+diputus (bukan file terpotong 200); persentase kehadiran dihitung sejak bergabung, maks 100%,
+shift nonaktif tidak jadi 0%, ABSENT pada libur susulan diabaikan; laporan tidak memuat karyawan
+yang bergabung setelah periode & tetap memuat karyawan terhapus yang punya data; race cache kiosk
+(rotasi secret) & settings; anti-replay QR personal atomik + TTL 2×interval; optimistic lock koreksi
+admin (409); kunci baris user untuk pengajuan izin/approval cuti; edit karyawan dengan shift/lokasi
+lama yang nonaktif; reuse refresh token hanya untuk token yang sudah dirotasi; rate limit
+personal-scan per karyawan. Tidak diubah (disengaja/perlu keputusan): scan akun nonaktif tidak
+tercatat di log scan (ditolak guard JWT), lokasi dengan kiosk nonaktif tidak bisa dihapus (FK),
+absen manual admin di hari libur/cuti diizinkan, lock cron bisa tertahan bila run > 15 menit,
+seed yang dijalankan ulang bisa membuat izin tumpang tindih (data dev).
+
 ## Frontend
 
 | # | Prompt | Status | Tanggal | Commit | Catatan |

@@ -197,9 +197,9 @@ describe('Auth (e2e, MySQL database _test)', () => {
         expect.arrayContaining([expect.stringMatching(/^Expires=Thu, 01 Jan 1970/)]),
       );
 
-      // Token hasil rotasi juga ikut dicabut (indikasi pencurian).
+      // Token hasil rotasi juga ikut dicabut (indikasi pencurian) → tidak bisa dipakai lagi.
       const afterReuse = await refresh(secondRefresh).expect(401);
-      expect(afterReuse.body.error.code).toBe('REFRESH_TOKEN_REUSED');
+      expect(afterReuse.body.error.code).toBe('TOKEN_INVALID');
 
       const audit = await prisma.auditLog.count({
         where: { actorId: ids.employee, action: AuditAction.REFRESH_TOKEN_REUSE_DETECTED },
@@ -220,8 +220,9 @@ describe('Auth (e2e, MySQL database _test)', () => {
         expect.arrayContaining([expect.stringMatching(/^Expires=Thu, 01 Jan 1970/)]),
       );
 
+      // Dicabut karena logout (bukan rotasi) → TOKEN_INVALID tanpa alarm pencurian.
       const after = await refresh(session.refreshToken).expect(401);
-      expect(['REFRESH_TOKEN_REUSED', 'TOKEN_INVALID']).toContain(after.body.error.code);
+      expect(after.body.error.code).toBe('TOKEN_INVALID');
 
       const actions = await prisma.auditLog.findMany({
         where: { actorId: ids.employee },
@@ -329,6 +330,26 @@ describe('Auth (e2e, MySQL database _test)', () => {
       const user = await prisma.user.findUniqueOrThrow({ where: { id: ids.lockout } });
       expect(user.failedLoginAttempts).toBe(5);
       expect(user.lockedUntil?.getTime()).toBeGreaterThan(Date.now() + 14 * 60_000);
+    });
+
+    it('setelah admin reset password, kegagalan lama & percobaan saat terkunci tidak dihitung lagi', async () => {
+      // Lanjutan skenario di atas: akun masih terkunci, coba lagi beberapa kali (tetap 423).
+      await login(USERS.lockout.email).expect(423);
+      await login(USERS.lockout.email, 'Salah9xyz').expect(423);
+
+      const { accessToken } = await loginOk(USERS.admin.email);
+      await request(http)
+        .post(`/api/v1/users/${ids.lockout}/reset-password`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .set('X-Forwarded-For', nextIp())
+        .send({ newPassword: 'Baru@12345' })
+        .expect(200);
+
+      // Satu kali salah ketik password baru → 401 biasa, BUKAN terkunci lagi.
+      await login(USERS.lockout.email, 'Baru@1234x').expect(401);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: ids.lockout } });
+      expect(user.failedLoginAttempts).toBe(1);
+      await loginOk(USERS.lockout.email, 'Baru@12345');
     });
 
     it('lebih dari 5 login per menit dari IP yang sama → 429 TOO_MANY_REQUESTS', async () => {

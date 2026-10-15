@@ -13,7 +13,7 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { AuditLogsService } from '@/modules/audit-logs/audit-logs.service';
 import { parseQrToken } from '@/modules/qr/qr-token';
-import { QrService } from '@/modules/qr/qr.service';
+import { QrService, type VerifiedPersonalToken } from '@/modules/qr/qr.service';
 import { SettingsService } from '@/modules/settings/settings.service';
 import {
   AttendanceContextLoader,
@@ -176,8 +176,9 @@ export class AttendanceService {
       createdAt: now,
     };
 
+    let token: VerifiedPersonalToken | null = null;
     try {
-      const token = this.qr.verifyPersonalToken(dto.qrToken, now); // 2 (+ anti-replay)
+      token = this.qr.verifyPersonalToken(dto.qrToken, now); // 2 (+ pesan anti-replay)
       log.userId = token.userId;
 
       const ctx = await this.context.load(token.userId, toTzDateString(now));
@@ -216,9 +217,10 @@ export class AttendanceService {
         longitude: dto.longitude,
         scannedById: officer.id,
       });
-      this.qr.markPersonalTokenUsed(token.userId, token.window, now);
       return result;
     } catch (error) {
+      // Scan gagal → token boleh dicoba lagi selama masih berlaku.
+      if (token) this.qr.releasePersonalToken(token);
       // QR_ALREADY_USED dilempar setelah signature terverifikasi → pemilik token dapat dipercaya.
       // (QR_INVALID/QR_EXPIRED tidak: id di token belum tentu asli.)
       if (
@@ -249,11 +251,9 @@ export class AttendanceService {
         ? this.rules.checkOutAvailableAt(checkInAt, minGap)
         : null;
 
-    const canScanToday =
-      Boolean(ctx.user?.isActive && !ctx.user.deletedAt) &&
-      isWorkingDay &&
-      !ctx.holiday &&
-      !ctx.leave;
+    const accountActive = Boolean(ctx.user?.isActive && !ctx.user.deletedAt);
+    // Libur/bukan hari kerja/cuti hanya menghalangi check-in; check-out tetap boleh (lihat plan()).
+    const dayOpen = accountActive && isWorkingDay && !ctx.holiday && !ctx.leave;
 
     return {
       date: ctx.date,
@@ -283,11 +283,15 @@ export class AttendanceService {
           }
         : null,
       canCheckIn:
-        canScanToday &&
+        dayOpen &&
         action === 'CHECK_IN' &&
         shift !== null &&
         this.rules.isWithinCheckInWindow(shift, ctx.date, now),
-      canCheckOut: canScanToday && checkOutAvailableAt !== null && now >= checkOutAvailableAt,
+      canCheckOut:
+        accountActive &&
+        shift !== null &&
+        checkOutAvailableAt !== null &&
+        now >= checkOutAvailableAt,
       checkInOpensAt: window?.opensAt ?? null,
       checkInClosesAt: window?.closesAt ?? null,
       checkOutAvailableAt,
@@ -303,16 +307,8 @@ export class AttendanceService {
     return user;
   }
 
-  /** Langkah 6–8: shift → hari kerja/libur/cuti → masuk atau pulang + jendela waktu. */
-  private plan(
-    ctx: AttendanceContext,
-    user: ContextUser,
-    now: Date,
-    minGapMinutes: number,
-  ): ScanPlan {
-    const shift = user.shift;
-    if (!shift?.isActive) throw new BusinessException(ErrorCode.NO_SHIFT_ASSIGNED);
-
+  /** Aturan 6: hanya berlaku saat MEMULAI hari (check-in). */
+  private assertDayOpen(ctx: AttendanceContext, shift: NonNullable<ContextUser['shift']>): void {
     if (!this.rules.isWorkingDay(shift, ctx.date)) {
       throw new BusinessException(ErrorCode.NOT_WORKING_DAY);
     }
@@ -334,8 +330,25 @@ export class AttendanceService {
         { leaveType: ctx.leave.type },
       );
     }
+  }
+
+  /**
+   * Langkah 6–8: shift → hari kerja/libur/cuti → masuk atau pulang + jendela waktu.
+   * Hari kerja/libur/cuti hanya menentukan boleh-tidaknya MEMULAI hari (check-in). Karyawan
+   * yang sudah check-in tetap bisa check-out walau izinnya baru disetujui, atau hari libur
+   * ditetapkan di tengah hari — agar record tidak tertahan tanpa jam pulang.
+   */
+  private plan(
+    ctx: AttendanceContext,
+    user: ContextUser,
+    now: Date,
+    minGapMinutes: number,
+  ): ScanPlan {
+    const shift = user.shift;
+    if (!shift?.isActive) throw new BusinessException(ErrorCode.NO_SHIFT_ASSIGNED);
 
     const action = this.rules.resolveAction(ctx.attendance);
+    if (action === 'CHECK_IN') this.assertDayOpen(ctx, shift);
     if (action === 'ALREADY_CHECKED_OUT') {
       throw new BusinessException(ErrorCode.ALREADY_CHECKED_OUT, undefined, undefined, {
         checkOutAt: ctx.attendance?.checkOutAt,
@@ -413,19 +426,26 @@ export class AttendanceService {
             kioskId: source.kioskId,
             locationId: source.locationId,
             scannedById: source.scannedById,
-          } satisfies Prisma.AttendanceUncheckedUpdateInput;
+          } satisfies Prisma.AttendanceUncheckedUpdateManyInput;
 
-          // Record tanpa check-in (mis. ABSENT buatan admin) dilengkapi, bukan dibuat ulang.
-          saved = ctx.attendance
-            ? await tx.attendance.update({
-                where: { id: ctx.attendance.id },
-                data,
-                select: ATTENDANCE_SELECT,
-              })
-            : await tx.attendance.create({
-                data: { ...data, userId: plan.user.id, date: toDbDate(ctx.date) },
-                select: ATTENDANCE_SELECT,
-              });
+          if (ctx.attendance) {
+            // Record tanpa check-in (mis. ABSENT dari cron/admin) dilengkapi, bukan dibuat ulang.
+            // `checkInAt: null` mencegah dua scan masuk bersamaan sama-sama "berhasil".
+            const { count } = await tx.attendance.updateMany({
+              where: { id: ctx.attendance.id, checkInAt: null },
+              data,
+            });
+            if (count === 0) throw new BusinessException(ErrorCode.ALREADY_CHECKED_IN);
+            saved = await tx.attendance.findUniqueOrThrow({
+              where: { id: ctx.attendance.id },
+              select: ATTENDANCE_SELECT,
+            });
+          } else {
+            saved = await tx.attendance.create({
+              data: { ...data, userId: plan.user.id, date: toDbDate(ctx.date) },
+              select: ATTENDANCE_SELECT,
+            });
+          }
         } else {
           const metrics = this.rules.computeCheckOutMetrics(
             plan.shift,

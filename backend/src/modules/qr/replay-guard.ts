@@ -23,6 +23,17 @@ export class ReplayGuard {
     this.entries.set(key, now + this.ttlMs);
   }
 
+  /** Tandai secara atomik (satu proses Node): `false` bila kunci sudah dipakai/dipesan. */
+  tryAdd(key: string, now: number = Date.now()): boolean {
+    if (this.has(key, now)) return false;
+    this.add(key, now);
+    return true;
+  }
+
+  delete(key: string): void {
+    this.entries.delete(key);
+  }
+
   get size(): number {
     return this.entries.size;
   }
