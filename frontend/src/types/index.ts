@@ -4,6 +4,8 @@ import type { components } from './api';
 export type Schemas = components['schemas'];
 
 export type UserProfile = Schemas['UserProfileEntity'];
+export type AuthTokenResponse = Schemas['AuthTokenEntity'];
+export type PublicSettings = Schemas['PublicSettingsEntity'];
 export type Role = UserProfile['role'];
 
 export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'SICK' | 'PERMIT' | 'LEAVE';

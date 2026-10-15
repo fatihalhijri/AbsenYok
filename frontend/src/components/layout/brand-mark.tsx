@@ -1,3 +1,6 @@
+'use client';
+
+import { usePublicSettings } from '@/features/settings/hooks';
 import { env } from '@/lib/env';
 import { cn } from '@/lib/utils';
 
@@ -5,10 +8,14 @@ interface BrandMarkProps {
   className?: string;
   /** Class untuk teks nama (mis. disembunyikan saat sidebar diciutkan). */
   nameClassName?: string;
+  /** `company` = nama instansi dari /settings/public (fallback nama aplikasi); `app` = AbsenYok. */
+  label?: 'company' | 'app';
 }
 
-/** Logo "AY" + nama aplikasi. Nama instansi dari /settings/public menyusul di FE-03. */
-export function BrandMark({ className, nameClassName }: BrandMarkProps) {
+/** Logo "AY" + nama instansi/aplikasi. */
+export function BrandMark({ className, nameClassName, label = 'company' }: BrandMarkProps) {
+  const { companyName } = usePublicSettings();
+  const name = label === 'company' ? companyName : env.NEXT_PUBLIC_APP_NAME;
   return (
     <span className={cn('flex min-w-0 items-center gap-2', className)}>
       <span
@@ -17,9 +24,7 @@ export function BrandMark({ className, nameClassName }: BrandMarkProps) {
       >
         AY
       </span>
-      <span className={cn('truncate text-base font-semibold', nameClassName)}>
-        {env.NEXT_PUBLIC_APP_NAME}
-      </span>
+      <span className={cn('truncate text-base font-semibold', nameClassName)}>{name}</span>
     </span>
   );
 }

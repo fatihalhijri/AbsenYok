@@ -1,8 +1,7 @@
 'use client';
 
-import { LogOutIcon, PaletteIcon, UserIcon } from 'lucide-react';
+import { Loader2Icon, LogOutIcon, PaletteIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,6 +16,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useLogout } from '@/features/auth/hooks';
 import { useAuthStore } from '@/stores/auth-store';
 import { ThemeRadioItems } from './theme-toggle';
 
@@ -33,15 +33,8 @@ export function initialsOf(name: string | undefined): string {
 
 /** Avatar + menu: Profil, Tema, Keluar. */
 export function UserMenu({ profileHref }: { profileHref: string }) {
-  const router = useRouter();
   const user = useAuthStore((state) => state.user);
-  const clear = useAuthStore((state) => state.clear);
-
-  // Logout ke backend (cabut refresh token) ditambahkan di FE-03.
-  const logout = () => {
-    clear();
-    router.replace('/login');
-  };
+  const logout = useLogout();
 
   return (
     <DropdownMenu>
@@ -81,8 +74,16 @@ export function UserMenu({ profileHref }: { profileHref: string }) {
           </DropdownMenuSub>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={logout}>
-          <LogOutIcon aria-hidden="true" />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={logout.isPending}
+          onSelect={() => logout.mutate()}
+        >
+          {logout.isPending ? (
+            <Loader2Icon className="animate-spin" aria-hidden="true" />
+          ) : (
+            <LogOutIcon aria-hidden="true" />
+          )}
           Keluar
         </DropdownMenuItem>
       </DropdownMenuContent>

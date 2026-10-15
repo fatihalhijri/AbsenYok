@@ -99,6 +99,26 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
 - Halaman demo sementara: `/admin/_demo` (folder `%5Fdemo`, karena folder berawalan `_` adalah
   private folder di App Router) — dihapus di FE-08.
 
+## Autentikasi & API client (FE-03)
+
+- **Token**: access token hanya di memori (`stores/auth-store.ts`, Zustand tanpa persist); refresh
+  token di cookie httpOnly `ay_rt` (path `/api/v1/auth`) yang dikelola browser.
+- **`lib/api-client.ts`** (axios, `withCredentials`, timeout 15 dtk): header `Authorization`
+  otomatis; 401 `TOKEN_EXPIRED` → satu `/auth/refresh` bersama untuk semua request paralel
+  (single-flight) **dan** di-serialisasi antar-tab dengan Web Locks — refresh token dirotasi dan
+  pemakaian ulang token lama dianggap pencurian oleh backend (seluruh sesi dicabut). Refresh ditolak
+  (401/403) → sesi dihapus & ke `/login?next=…`; offline/5xx → sesi dipertahankan.
+  Helper `api.get/post/patch/put/delete` mengembalikan `body.data`; `api.page` → `{ items, meta }`.
+  Semua error menjadi `ApiError { code, message, status, details }` (`lib/error.ts`).
+- **Bootstrap**: `AuthBootstrap` (di `providers.tsx`) memanggil refresh sekali saat app dimuat.
+- **`src/proxy.ts`** (pengganti `middleware.ts` di Next 16): `/app`, `/admin`, `/kiosk` tanpa
+  cookie `ay_session` → `/login?next=…`. Hanya redirect cepat; otorisasi tetap di backend.
+- **`RoleGate`**: `(admin)` untuk SUPER_ADMIN/ADMIN, `(employee)` untuk EMPLOYEE; role lain
+  diarahkan ke berandanya. Menu Sistem hanya SUPER_ADMIN.
+- **Komponen**: `LoginView`/`LoginForm`, `ChangePasswordForm` + `PasswordStrength` (dipakai di
+  profil FE-06), hook `useLogin`, `useLogout`, `useEndSession`, `usePublicSettings`.
+- **Test**: `npm test` (Vitest + MSW) — termasuk "5 request paralel → 1 refresh".
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi

@@ -1,20 +1,55 @@
-import { create } from 'zustand';
+import { create, type StateCreator } from 'zustand';
 import type { UserProfile } from '@/types';
 
-interface AuthState {
-  /** Access token disimpan di memori saja (tidak di localStorage) — lihat FE-03. */
-  accessToken: string | null;
-  user: UserProfile | null;
-  setSession: (session: { accessToken: string; user: UserProfile }) => void;
-  setUser: (user: UserProfile) => void;
-  clear: () => void;
+export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated';
+
+export interface AuthSession {
+  accessToken: string;
+  user: UserProfile;
 }
 
-/** Sesi login. Login, refresh otomatis, dan proteksi route ditambahkan di FE-03. */
-export const useAuthStore = create<AuthState>()((set) => ({
+export interface AuthState {
+  /** Access token HANYA di memori (tidak di localStorage/sessionStorage). */
+  accessToken: string | null;
+  user: UserProfile | null;
+  status: AuthStatus;
+  /**
+   * Bootstrap sesi gagal karena server tidak terjangkau (bukan karena belum login) —
+   * UI menampilkan "coba lagi" alih-alih melempar user ke halaman login.
+   */
+  bootstrapError: boolean;
+  /** Sesi diakhiri user sendiri (logout/ganti password) → ke /login tanpa `next`. */
+  signedOut: boolean;
+  setSession: (session: AuthSession) => void;
+  setUser: (user: UserProfile) => void;
+  setStatus: (status: AuthStatus, options?: { bootstrapError?: boolean }) => void;
+  clear: (options?: { signedOut?: boolean }) => void;
+}
+
+const authStateCreator: StateCreator<AuthState> = (set) => ({
   accessToken: null,
   user: null,
-  setSession: ({ accessToken, user }) => set({ accessToken, user }),
+  status: 'idle',
+  bootstrapError: false,
+  signedOut: false,
+  setSession: ({ accessToken, user }) =>
+    set({ accessToken, user, status: 'authenticated', bootstrapError: false, signedOut: false }),
   setUser: (user) => set({ user }),
-  clear: () => set({ accessToken: null, user: null }),
-}));
+  setStatus: (status, options) => set({ status, bootstrapError: options?.bootstrapError ?? false }),
+  clear: (options) =>
+    set({
+      accessToken: null,
+      user: null,
+      status: 'unauthenticated',
+      bootstrapError: false,
+      signedOut: options?.signedOut ?? false,
+    }),
+});
+
+/** Store baru (dipakai test agar tiap kasus terisolasi). */
+export const createAuthStore = () => create<AuthState>()(authStateCreator);
+
+/** Sesi login aplikasi — sengaja TIDAK di-persist. */
+export const useAuthStore = createAuthStore();
+
+export type AuthStore = typeof useAuthStore;
