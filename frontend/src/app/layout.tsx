@@ -1,12 +1,16 @@
 import type { Metadata, Viewport } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { BRAND } from '@/lib/brand';
 import { env } from '@/lib/env';
 import { Providers } from './providers';
 import './globals.css';
 
-const fontSans = Geist({ variable: '--font-sans', subsets: ['latin'] });
-const fontMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
+const fontSans = Plus_Jakarta_Sans({
+  variable: '--font-sans',
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+});
 
 export const metadata: Metadata = {
   applicationName: env.NEXT_PUBLIC_APP_NAME,
@@ -39,7 +43,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
     <html
       lang="id"
       dir="ltr"
-      className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}
+      className={`${fontSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-full flex-col">
         <Providers>{children}</Providers>

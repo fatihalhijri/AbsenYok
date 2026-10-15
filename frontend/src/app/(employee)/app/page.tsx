@@ -1,13 +1,17 @@
+import { CalendarCheck2Icon } from 'lucide-react';
 import type { Metadata } from 'next';
+import { EmptyState } from '@/components/shared/empty-state';
 
 export const metadata: Metadata = { title: 'Beranda' };
 
-/** Kerangka beranda karyawan (start_url PWA) — layout & isi dikerjakan di FE-02/FE-04. */
+/** Beranda karyawan (start_url PWA) — isi dikerjakan di FE-04. */
 export default function EmployeeHomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-      <h1 className="text-2xl font-semibold">Beranda Karyawan</h1>
-      <p className="text-muted-foreground">Beranda sedang disiapkan.</p>
-    </main>
+    <EmptyState
+      className="flex-1"
+      icon={CalendarCheck2Icon}
+      title="Beranda karyawan"
+      description="Ringkasan absensi hari ini akan tampil di sini."
+    />
   );
 }

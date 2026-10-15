@@ -76,6 +76,29 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
 - Setelah berpindah dari `npm start` ke `npm run dev` di port yang sama, service worker lama
   masih terpasang di browser: _Unregister_ lewat DevTools bila perubahan tidak muncul.
 
+## Design system & layout (FE-02)
+
+- **Token warna** di `src/app/globals.css` (light & dark): primer emerald (light: emerald-700 agar
+  kontras AA dengan teks putih), `warning` amber, `destructive` rose, `success`, chart
+  emerald/teal/amber/rose/sky. Radius `0.75rem`, bayangan lembut, ikon lucide stroke 1.75. Font
+  Plus Jakarta Sans. Tema light/dark/system via `next-themes`.
+- **Layout karyawan** `(employee)/app`: topbar + bottom nav 5 item (Scan bulat di tengah), padding
+  `env(safe-area-inset-*)`; ≥ 768 px tampil terpusat maks 480 px.
+- **Layout admin** `(admin)/admin`: sidebar shadcn collapsible (preferensi di Zustand persist
+  `ay-ui`), Sheet di mobile, breadcrumb dari URL (`components/layout/admin-nav.ts`), grup Sistem
+  hanya SUPER_ADMIN.
+- **Komponen shared** `src/components/shared/`: `StatusBadge`, `PageHeader`, `DataTable`,
+  `EmptyState`, `ErrorState`, `ConfirmDialog`, `DateRangePicker`, `MonthPicker`, `StatCard`.
+- **DataTable** memakai **TanStack Table v9** (API `useTable` + `tableFeatures`). Definisikan kolom
+  dengan `createDataTableColumnHelper<T>()` dan `helper.columns([...])`; meta kolom: `label`
+  (menu Kolom), `className` (header & sel), `cellClassName` (sel saja). Sorting & paginasi
+  server-side: masukkan state `pagination`/`sorting`/`search` ke query key TanStack Query.
+- **Waktu & Cache Components**: Client Component tidak boleh membaca `new Date()` saat prerender.
+  Pakai hook `useToday()` (`null` saat prerender, tanggal APP_TIMEZONE di browser) dan tampilkan
+  skeleton selama `null`. Format tanggal Indonesia di `src/lib/date.ts` (dayjs, locale `id`).
+- Halaman demo sementara: `/admin/_demo` (folder `%5Fdemo`, karena folder berawalan `_` adalah
+  private folder di App Router) — dihapus di FE-08.
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi
