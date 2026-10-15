@@ -19,13 +19,14 @@ import { parseWorkDays } from '@/common/utils/time.util';
 import { SettingsService } from '@/modules/settings/settings.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
-  createE2eApp,
-  createIpSequence,
-  createUserFixture,
-  FakeClock,
-  loginToken,
-  resetDatabase,
-} from './e2e-utils';
+  createAttendance,
+  createHoliday,
+  createKiosk,
+  createLocation,
+  createShift,
+  createUser,
+} from '../factories';
+import { createE2eApp, createIpSequence, FakeClock, loginToken, resetDatabase } from './e2e-utils';
 
 /** Parser supertest untuk respons file (XLSX/PDF) → Buffer. */
 const binaryParser = (
@@ -272,36 +273,26 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
       clock.set(wib(MONDAY, '10:00:00'));
       await freshState();
 
-      const regular = (
-        await prisma.shift.create({
-          data: { name: 'Reguler', startTime: '08:00', endTime: '17:00' },
-        })
-      ).id;
+      const regular = (await createShift(prisma)).id;
       const saturday = (
-        await prisma.shift.create({
-          data: { name: 'Sabtu', startTime: '08:00', endTime: '13:00', workDays: '6' },
-        })
+        await createShift(prisma, { name: 'Sabtu', endTime: '13:00', workDays: '6' })
       ).id;
-      const location = await prisma.location.create({
-        data: { name: 'Kantor', latitude: '-6.2', longitude: '106.8' },
-      });
-      const kiosk = await prisma.kiosk.create({
-        data: { name: 'Lobi', locationId: location.id, secret: 'k'.repeat(128) },
-      });
+      const location = await createLocation(prisma, { name: 'Kantor' });
+      const kiosk = await createKiosk(prisma, { name: 'Lobi', locationId: location.id });
 
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'SA',
         email: 'sa@dr.test',
         role: Role.SUPER_ADMIN,
       });
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'ADM',
         email: 'adm@dr.test',
         role: Role.ADMIN,
       });
       for (const key of ['P', 'L', 'A', 'V', 'S', 'N']) {
         ids[key] = (
-          await createUserFixture(prisma, {
+          await createUser(prisma, {
             employeeCode: `E-${key}`,
             email: `${key.toLowerCase()}@dr.test`,
             role: Role.EMPLOYEE,
@@ -310,14 +301,14 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
         ).id;
       }
       ids.W = (
-        await createUserFixture(prisma, {
+        await createUser(prisma, {
           employeeCode: 'E-W',
           email: 'w@dr.test',
           role: Role.EMPLOYEE,
           shiftId: saturday,
         })
       ).id;
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'E-X',
         email: 'x@dr.test',
         role: Role.EMPLOYEE,
@@ -400,13 +391,11 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
       });
 
       it('summary di-cache 30 detik (data baru belum terlihat sampai cache kedaluwarsa)', async () => {
-        await prisma.attendance.create({
-          data: {
-            userId: ids.N,
-            date: toDbDate(MONDAY),
-            status: 'PRESENT',
-            checkInAt: wib(MONDAY, '09:00:00'),
-          },
+        await createAttendance(prisma, {
+          userId: ids.N,
+          date: MONDAY,
+          status: 'PRESENT',
+          checkInAt: wib(MONDAY, '09:00:00'),
         });
         const cached = await as(adminToken).get('/api/v1/dashboard/summary').expect(200);
         expect(cached.body.data.notYetCheckedIn).toBe(1);
@@ -467,7 +456,7 @@ describe('Dashboard, reports & audit logs (e2e)', () => {
       });
 
       it('hari libur → totalEmployees 0 & nama libur', async () => {
-        await prisma.holiday.create({ data: { date: toDbDate('2026-10-20'), name: 'Libur Uji' } });
+        await createHoliday(prisma, '2026-10-20');
         clock.set(wib('2026-10-20', '10:00:00'));
         await cache.clear();
         const res = await as(adminToken).get('/api/v1/dashboard/summary').expect(200);

@@ -1,0 +1,3 @@
+# Skrip shell dijalankan di Linux (container/CI): wajib LF meski di-checkout di Windows.
+*.sh text eol=lf
+backend/.husky/* text eol=lf

@@ -34,6 +34,14 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      // Query raw wajib tagged template `$queryRaw\`...\`` (parameterized) — cegah SQL injection.
+      'no-restricted-properties': [
+        'error',
+        ...['$queryRawUnsafe', '$executeRawUnsafe'].map((property) => ({
+          property,
+          message: 'Gunakan $queryRaw/$executeRaw dengan template literal (parameterized).',
+        })),
+      ],
     },
   },
   {

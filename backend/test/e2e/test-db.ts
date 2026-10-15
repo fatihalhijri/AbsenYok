@@ -20,10 +20,13 @@ export function assertTestDatabaseUrl(databaseUrl: string | undefined): void {
   }
 }
 
-/** Muat env (.env lalu .env.example), arahkan DATABASE_URL ke database test & UPLOAD_DIR ke temp. */
+/**
+ * Muat env (.env.test → .env → .env.example; variabel yang sudah ada tidak ditimpa), pastikan
+ * DATABASE_URL mengarah ke database `_test` & UPLOAD_DIR ke folder temp.
+ */
 export function loadTestEnv(): void {
   process.env.NODE_ENV = 'test';
-  config({ path: ['.env', '.env.example'], quiet: true });
+  config({ path: ['.env.test', '.env', '.env.example'], quiet: true });
   if (process.env.DATABASE_URL) {
     process.env.DATABASE_URL = toTestDatabaseUrl(process.env.DATABASE_URL);
   }

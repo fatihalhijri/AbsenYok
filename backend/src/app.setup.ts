@@ -2,7 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { API_PREFIX, SWAGGER_PATH } from '@/common/constants/app.constants';
+import { API_PREFIX, BODY_SIZE_LIMIT, SWAGGER_PATH } from '@/common/constants/app.constants';
 import { AppConfigService } from '@/config/app.config';
 import { registerStaticFiles } from '@/config/static-files.config';
 import { HEALTH_PREFIX_EXCLUDES } from '@/modules/health/health.constants';
@@ -28,6 +28,8 @@ export function configureApp(app: NestExpressApplication): void {
         : { directives: { upgradeInsecureRequests: null } },
     }),
   );
+  app.useBodyParser('json', { limit: BODY_SIZE_LIMIT });
+  app.useBodyParser('urlencoded', { limit: BODY_SIZE_LIMIT, extended: true });
   app.use(cookieParser());
   registerStaticFiles(app, config);
   app.enableCors({

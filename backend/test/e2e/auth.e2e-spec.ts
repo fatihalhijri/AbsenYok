@@ -13,6 +13,7 @@ import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { TokenService } from '@/modules/auth/token.service';
 import { UserAuthCacheService } from '@/modules/auth/user-auth-cache.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { createShift } from '../factories';
 import { createE2eApp, expectNoSecrets, getCookie, resetDatabase } from './e2e-utils';
 
 /** Endpoint khusus test untuk memverifikasi RolesGuard. */
@@ -74,9 +75,7 @@ describe('Auth (e2e, MySQL database _test)', () => {
     prisma = app.get(PrismaService);
     await resetDatabase(prisma);
 
-    const shift = await prisma.shift.create({
-      data: { name: 'Reguler E2E', startTime: '08:00', endTime: '17:00' },
-    });
+    const shift = await createShift(prisma, { name: 'Reguler E2E' });
     const passwordHash = await hashPassword(PASSWORD);
 
     for (const [key, user] of Object.entries(USERS) as [

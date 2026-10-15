@@ -5,9 +5,8 @@ import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from '@/app.module';
 import { configureApp } from '@/app.setup';
-import type { Role } from '@/common/constants/roles';
-import { hashPassword } from '@/common/utils/password.util';
 import type { PrismaService } from '@/prisma/prisma.service';
+import { E2E_PASSWORD } from '../factories';
 import { assertTestDatabaseUrl } from './test-db';
 
 type ControllerClass = new (...args: never[]) => unknown;
@@ -65,22 +64,6 @@ export function expectNoSecrets(body: unknown): void {
   for (const secret of ['passwordHash', 'tokenHash', '$argon2', 'boundDeviceId', 'secret']) {
     expect(json).not.toContain(secret);
   }
-}
-
-export const E2E_PASSWORD = 'Rahasia@123';
-
-/** Buat user langsung di database (fixture). */
-export async function createUserFixture(
-  prisma: PrismaService,
-  data: { employeeCode: string; email: string; role: Role; isActive?: boolean; shiftId?: string },
-) {
-  return prisma.user.create({
-    data: {
-      ...data,
-      name: `User ${data.employeeCode}`,
-      passwordHash: await hashPassword(E2E_PASSWORD),
-    },
-  });
 }
 
 /** Penghitung IP unik per file test — throttle login dihitung per IP. */

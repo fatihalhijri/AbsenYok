@@ -4,10 +4,10 @@ import type { App } from 'supertest/types';
 import { Role } from '@/common/constants/roles';
 import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { PrismaService } from '@/prisma/prisma.service';
+import { createKiosk, createUser } from '../factories';
 import {
   createE2eApp,
   createIpSequence,
-  createUserFixture,
   errorFields,
   loginToken,
   resetDatabase,
@@ -44,18 +44,18 @@ describe('Master data & settings (e2e)', () => {
     await resetDatabase(prisma);
 
     superAdminId = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'SA1',
         email: 'sa@md.test',
         role: Role.SUPER_ADMIN,
       })
     ).id;
-    await createUserFixture(prisma, {
+    await createUser(prisma, {
       employeeCode: 'ADM1',
       email: 'adm@md.test',
       role: Role.ADMIN,
     });
-    await createUserFixture(prisma, {
+    await createUser(prisma, {
       employeeCode: 'EMP1',
       email: 'emp@md.test',
       role: Role.EMPLOYEE,
@@ -100,7 +100,7 @@ describe('Master data & settings (e2e)', () => {
     });
 
     it('DELETE ditolak (409) bila masih ada karyawan aktif, berhasil setelah kosong', async () => {
-      const user = await createUserFixture(prisma, {
+      const user = await createUser(prisma, {
         employeeCode: 'EMP-IT',
         email: 'it@md.test',
         role: Role.EMPLOYEE,
@@ -181,7 +181,7 @@ describe('Master data & settings (e2e)', () => {
         .post('/api/v1/shifts')
         .send({ name: 'Dipakai', startTime: '08:00', endTime: '16:00' })
         .expect(201);
-      const user = await createUserFixture(prisma, {
+      const user = await createUser(prisma, {
         employeeCode: 'EMP-SH',
         email: 'shift@md.test',
         role: Role.EMPLOYEE,
@@ -225,9 +225,7 @@ describe('Master data & settings (e2e)', () => {
         .post('/api/v1/locations')
         .send({ ...location, name: 'Gudang' })
         .expect(201);
-      await prisma.kiosk.create({
-        data: { name: 'Kiosk Gudang', locationId: created.body.data.id, secret: 'x'.repeat(64) },
-      });
+      await createKiosk(prisma, { name: 'Kiosk Gudang', locationId: created.body.data.id });
       const res = await as(adminToken)
         .delete(`/api/v1/locations/${created.body.data.id}`)
         .expect(409);

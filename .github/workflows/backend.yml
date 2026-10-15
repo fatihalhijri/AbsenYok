@@ -1,0 +1,107 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-build:
+    name: Lint, test & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root_ci_only
+          MYSQL_DATABASE: absenyok_test
+          MYSQL_USER: absenyok
+          MYSQL_PASSWORD: absenyok_secret
+          TZ: UTC
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot_ci_only"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    env:
+      HUSKY: '0'
+      # Database khusus CI (nama wajib berakhiran _test; di-reset oleh global setup e2e).
+      DATABASE_URL: mysql://absenyok:absenyok_secret@127.0.0.1:3306/absenyok_test
+      # Disamakan dengan npm yang membuat package-lock.json.
+      NPM_VERSION: 11.6.2
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Secret acak per run (tidak ada secret di repo)
+        run: |
+          for name in JWT_ACCESS_SECRET JWT_REFRESH_SECRET QR_SIGNING_SECRET; do
+            secret="$(openssl rand -hex 64)"
+            echo "::add-mask::$secret"
+            echo "$name=$secret" >> "$GITHUB_ENV"
+          done
+
+      - name: Install
+        run: |
+          npm install -g "npm@${NPM_VERSION}" --no-audit --no-fund
+          npm ci --no-audit --no-fund
+
+      # Generate dulu: ESLint type-checked membutuhkan tipe Prisma Client (src/generated).
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Prisma migrate deploy
+        run: npx prisma migrate deploy
+
+      - name: Unit test + coverage
+        run: npm run test:cov -- --ci
+
+      - name: E2E test
+        run: npm run test:e2e -- --ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit dependensi produksi (high/critical)
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          if-no-files-found: ignore
+          retention-days: 7

@@ -8,10 +8,10 @@ import { combineDateAndTime, toDbDate, todayDateString } from '@/common/utils/da
 import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { QrService } from '@/modules/qr/qr.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { createKiosk, createLocation, createUser } from '../factories';
 import {
   createE2eApp,
   createIpSequence,
-  createUserFixture,
   errorFields,
   expectNoSecrets,
   loginToken,
@@ -65,24 +65,23 @@ describe('Kiosks & QR (e2e)', () => {
     qr = app.get(QrService);
     await resetDatabase(prisma);
 
-    locationId = (
-      await prisma.location.create({
-        data: { name: 'Kantor Pusat', latitude: '-6.2000000', longitude: '106.8166667' },
-      })
-    ).id;
+    locationId = (await createLocation(prisma)).id;
     inactiveLocationId = (
-      await prisma.location.create({
-        data: { name: 'Tutup', latitude: '-6.3', longitude: '106.9', isActive: false },
+      await createLocation(prisma, {
+        name: 'Tutup',
+        latitude: -6.3,
+        longitude: 106.9,
+        isActive: false,
       })
     ).id;
 
-    await createUserFixture(prisma, {
+    await createUser(prisma, {
       employeeCode: 'ADM1',
       email: 'adm@k.test',
       role: Role.ADMIN,
     });
     employeeId = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'EMP1',
         email: 'emp@k.test',
         role: Role.EMPLOYEE,
@@ -265,19 +264,17 @@ describe('Kiosks & QR (e2e)', () => {
     it('10 scan berhasil terakhir hari ini dengan tipe masuk/pulang & status', async () => {
       const today = todayDateString();
       const t = (time: string) => combineDateAndTime(today, time);
-      const budi = await createUserFixture(prisma, {
+      const budi = await createUser(prisma, {
         employeeCode: 'BUDI',
         email: 'budi@k.test',
         role: Role.EMPLOYEE,
       });
-      const sari = await createUserFixture(prisma, {
+      const sari = await createUser(prisma, {
         employeeCode: 'SARI',
         email: 'sari@k.test',
         role: Role.EMPLOYEE,
       });
-      const otherKiosk = await prisma.kiosk.create({
-        data: { name: 'Lain', locationId, secret: 'x'.repeat(128) },
-      });
+      const otherKiosk = await createKiosk(prisma, { name: 'Lain', locationId });
 
       await prisma.attendance.createMany({
         data: [

@@ -8,9 +8,15 @@ import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { DAILY_CRON_LOCK } from '@/modules/attendance/attendance-recalculate.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
+  createAttendance,
+  createHoliday,
+  createLeaveRequest,
+  createShift,
+  createUser,
+} from '../factories';
+import {
   createE2eApp,
   createIpSequence,
-  createUserFixture,
   errorFields,
   FakeClock,
   loginToken,
@@ -69,19 +75,17 @@ describe('Attendance admin & recalculate (e2e)', () => {
     prisma = app.get(PrismaService);
     await resetDatabase(prisma);
 
-    const shiftId = (
-      await prisma.shift.create({ data: { name: 'Reguler', startTime: '08:00', endTime: '17:00' } })
-    ).id;
-    await prisma.holiday.create({ data: { date: toDbDate(TUE), name: 'Libur Uji' } });
+    const shiftId = (await createShift(prisma)).id;
+    await createHoliday(prisma, TUE);
 
     superAdminId = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'SA',
         email: 'sa@adm.test',
         role: Role.SUPER_ADMIN,
       })
     ).id;
-    await createUserFixture(prisma, {
+    await createUser(prisma, {
       employeeCode: 'ADM',
       email: 'adm@adm.test',
       role: Role.ADMIN,
@@ -98,7 +102,7 @@ describe('Attendance admin & recalculate (e2e)', () => {
     ];
     for (const person of people) {
       ids[person] = (
-        await createUserFixture(prisma, {
+        await createUser(prisma, {
           employeeCode: `P-${person.toUpperCase()}`,
           email: `${person.toLowerCase()}@adm.test`,
           role: Role.EMPLOYEE,
@@ -119,18 +123,16 @@ describe('Attendance admin & recalculate (e2e)', () => {
     });
 
     presentMondayId = (
-      await prisma.attendance.create({
-        data: {
-          userId: ids.present,
-          date: toDbDate(MON),
-          status: 'PRESENT',
-          checkInAt: new Date(wib(MON, '07:50:00')),
-          checkOutAt: new Date(wib(MON, '17:05:00')),
-          checkInMethod: 'KIOSK_QR',
-          checkOutMethod: 'KIOSK_QR',
-          workMinutes: 555,
-          shiftSnapshot: SNAPSHOT,
-        },
+      await createAttendance(prisma, {
+        userId: ids.present,
+        date: MON,
+        status: 'PRESENT',
+        checkInAt: new Date(wib(MON, '07:50:00')),
+        checkOutAt: new Date(wib(MON, '17:05:00')),
+        checkInMethod: 'KIOSK_QR',
+        checkOutMethod: 'KIOSK_QR',
+        workMinutes: 555,
+        shiftSnapshot: SNAPSHOT,
       })
     ).id;
     await prisma.attendanceScanLog.createMany({
@@ -167,32 +169,17 @@ describe('Attendance admin & recalculate (e2e)', () => {
       ],
     });
 
-    await prisma.leaveRequest.create({
-      data: {
-        userId: ids.onLeave,
-        type: 'ANNUAL',
-        startDate: toDbDate(MON),
-        endDate: toDbDate(WED),
-        totalDays: 2,
-        reason: 'Cuti keluarga',
-        status: 'APPROVED',
-      },
+    await createLeaveRequest(prisma, {
+      userId: ids.onLeave,
+      type: 'ANNUAL',
+      startDate: MON,
+      endDate: WED,
+      totalDays: 2,
+      reason: 'Cuti keluarga',
     });
     // Sudah ditandai ABSENT, lalu izin sakit disetujui belakangan (§9).
-    await prisma.attendance.create({
-      data: { userId: ids.lateLeave, date: toDbDate(MON), status: 'ABSENT' },
-    });
-    await prisma.leaveRequest.create({
-      data: {
-        userId: ids.lateLeave,
-        type: 'SICK',
-        startDate: toDbDate(MON),
-        endDate: toDbDate(MON),
-        totalDays: 1,
-        reason: 'Demam',
-        status: 'APPROVED',
-      },
-    });
+    await createAttendance(prisma, { userId: ids.lateLeave, date: MON });
+    await createLeaveRequest(prisma, { userId: ids.lateLeave, startDate: MON });
 
     superAdminToken = await loginToken(http, 'sa@adm.test', nextIp());
     adminToken = await loginToken(http, 'adm@adm.test', nextIp());

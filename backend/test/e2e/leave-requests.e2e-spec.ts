@@ -7,10 +7,10 @@ import { toDbDate } from '@/common/utils/date.util';
 import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { SettingsService } from '@/modules/settings/settings.service';
 import { PrismaService } from '@/prisma/prisma.service';
+import { createHoliday, createShift, createUser } from '../factories';
 import {
   createE2eApp,
   createIpSequence,
-  createUserFixture,
   errorFields,
   FakeClock,
   loginToken,
@@ -67,20 +67,18 @@ describe('Leave requests (e2e)', () => {
     await resetDatabase(prisma);
     app.get(SettingsService).invalidate();
 
-    const shiftId = (
-      await prisma.shift.create({ data: { name: 'Reguler', startTime: '08:00', endTime: '17:00' } })
-    ).id;
-    await prisma.holiday.create({ data: { date: toDbDate('2026-10-23'), name: 'Libur Uji' } });
+    const shiftId = (await createShift(prisma)).id;
+    await createHoliday(prisma, '2026-10-23');
 
     ids.admin = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'ADM',
         email: 'adm@lv.test',
         role: Role.ADMIN,
       })
     ).id;
     ids.a = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'EMP-A',
         email: 'a@lv.test',
         role: Role.EMPLOYEE,
@@ -88,14 +86,14 @@ describe('Leave requests (e2e)', () => {
       })
     ).id;
     ids.b = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'EMP-B',
         email: 'b@lv.test',
         role: Role.EMPLOYEE,
         shiftId,
       })
     ).id;
-    await createUserFixture(prisma, {
+    await createUser(prisma, {
       employeeCode: 'EMP-N',
       email: 'n@lv.test',
       role: Role.EMPLOYEE,

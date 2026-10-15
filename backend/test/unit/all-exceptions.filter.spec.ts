@@ -135,6 +135,26 @@ describe('AllExceptionsFilter', () => {
     expect(status).toHaveBeenCalledWith(500);
   });
 
+  it('error 4xx middleware Express (body-parser) → status asli, pesan generik, tanpa stack', () => {
+    const { host, status, body } = createHost();
+    const tooLarge = Object.assign(new Error('request entity too large'), {
+      status: 413,
+      statusCode: 413,
+      expose: true,
+      type: 'entity.too.large',
+    });
+    devFilter.catch(tooLarge, host);
+
+    expect(status).toHaveBeenCalledWith(413);
+    expect(body().error).toEqual({ code: 'BAD_REQUEST', message: 'Ukuran data terlalu besar' });
+  });
+
+  it('error berstatus 4xx tanpa `expose` tetap dianggap 500 (pesan internal tidak bocor)', () => {
+    const { host, status } = createHost();
+    prodFilter.catch(Object.assign(new Error('internal'), { status: 400 }), host);
+    expect(status).toHaveBeenCalledWith(500);
+  });
+
   it('error tak dikenal di produksi → 500 tanpa stack', () => {
     const { host, status, body } = createHost();
     prodFilter.catch(new Error('koneksi putus: password=rahasia'), host);

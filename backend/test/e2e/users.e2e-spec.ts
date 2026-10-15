@@ -6,11 +6,10 @@ import type { App } from 'supertest/types';
 import { Role } from '@/common/constants/roles';
 import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { PrismaService } from '@/prisma/prisma.service';
+import { createDepartment, createShift, createUser, E2E_PASSWORD } from '../factories';
 import {
   createE2eApp,
   createIpSequence,
-  createUserFixture,
-  E2E_PASSWORD,
   errorFields,
   expectNoSecrets,
   loginToken,
@@ -64,41 +63,40 @@ describe('Users (e2e)', () => {
     prisma = app.get(PrismaService);
     await resetDatabase(prisma);
 
-    departmentId = (
-      await prisma.department.create({ data: { code: 'HR', name: 'Sumber Daya Manusia' } })
-    ).id;
-    shiftId = (
-      await prisma.shift.create({ data: { name: 'Reguler', startTime: '08:00', endTime: '17:00' } })
-    ).id;
+    departmentId = (await createDepartment(prisma, { code: 'HR', name: 'Sumber Daya Manusia' })).id;
+    shiftId = (await createShift(prisma)).id;
     inactiveShiftId = (
-      await prisma.shift.create({
-        data: { name: 'Lama', startTime: '07:00', endTime: '15:00', isActive: false },
+      await createShift(prisma, {
+        name: 'Lama',
+        startTime: '07:00',
+        endTime: '15:00',
+        isActive: false,
       })
     ).id;
 
     ids.superAdmin = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'SA1',
         email: 'sa@e2e.test',
         role: Role.SUPER_ADMIN,
       })
     ).id;
     ids.admin = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'ADM1',
         email: 'adm@e2e.test',
         role: Role.ADMIN,
       })
     ).id;
     ids.otherAdmin = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'ADM2',
         email: 'adm2@e2e.test',
         role: Role.ADMIN,
       })
     ).id;
     ids.employee = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'EMP1',
         email: 'emp@e2e.test',
         role: Role.EMPLOYEE,
@@ -267,7 +265,7 @@ describe('Users (e2e)', () => {
     let targetToken: string;
 
     beforeAll(async () => {
-      const user = await createUserFixture(prisma, {
+      const user = await createUser(prisma, {
         employeeCode: 'EMP-STAT',
         email: 'status@e2e.test',
         role: Role.EMPLOYEE,

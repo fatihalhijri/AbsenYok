@@ -1,0 +1,24 @@
+# Hasil build & dependensi lokal (dibangun ulang di dalam image)
+node_modules
+dist
+coverage
+src/generated
+*.tsbuildinfo
+
+# Rahasia & env lokal — env diberikan saat runtime (env_file / environment)
+.env
+.env.*
+!.env.example
+
+# Data runtime & file yang tidak dibutuhkan image
+uploads
+test
+prompts
+.husky
+*.log
+*.md
+Dockerfile
+.dockerignore
+.prettierrc
+.prettierignore
+eslint.config.mjs

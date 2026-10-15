@@ -45,6 +45,21 @@ const STATUS_MESSAGES: Partial<Record<number, string>> = {
   [HttpStatus.UNSUPPORTED_MEDIA_TYPE]: 'Tipe konten tidak didukung',
 };
 
+/**
+ * Error 4xx bergaya `http-errors` dari middleware Express (body-parser: body terlalu besar,
+ * charset/encoding tidak didukung, dll.). `expose` menandai pesan aman untuk klien.
+ */
+interface ClientHttpErrorLike extends Error {
+  status: number;
+  expose: true;
+}
+
+export function isClientHttpError(error: unknown): error is ClientHttpErrorLike {
+  if (!(error instanceof Error)) return false;
+  const { status, expose } = error as Partial<ClientHttpErrorLike>;
+  return expose === true && typeof status === 'number' && status >= 400 && status < 500;
+}
+
 export function isPrismaKnownRequestError(error: unknown): error is PrismaKnownRequestErrorLike {
   return (
     error instanceof Error &&
@@ -100,6 +115,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return this.fromHttpException(exception);
     }
 
+    if (isClientHttpError(exception)) {
+      return this.fromStatus(exception.status);
+    }
+
     if (isPrismaKnownRequestError(exception)) {
       const prismaError = this.fromPrismaError(exception);
       if (prismaError) return prismaError;
@@ -109,18 +128,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
   }
 
   private fromHttpException(exception: HttpException): ResolvedError {
-    const status = exception.getStatus();
-    const code =
-      STATUS_TO_CODE[status] ?? (status >= 500 ? ErrorCode.INTERNAL_ERROR : ErrorCode.BAD_REQUEST);
-    const message = STATUS_MESSAGES[status] ?? DEFAULT_ERROR_MESSAGES[code];
-
     // Detail hanya diteruskan untuk 503 (mis. hasil health check terminus per indikator).
     const response = exception.getResponse();
     const details =
       exception instanceof ServiceUnavailableException && typeof response === 'object'
         ? response
         : undefined;
+    return this.fromStatus(exception.getStatus(), details);
+  }
 
+  /** Pesan generik per status — pesan asli error (bahasa Inggris/internal) tidak diteruskan. */
+  private fromStatus(status: number, details?: unknown): ResolvedError {
+    const code =
+      STATUS_TO_CODE[status] ?? (status >= 500 ? ErrorCode.INTERNAL_ERROR : ErrorCode.BAD_REQUEST);
+    const message = STATUS_MESSAGES[status] ?? DEFAULT_ERROR_MESSAGES[code];
     return { status, body: this.body(code, message, details) };
   }
 

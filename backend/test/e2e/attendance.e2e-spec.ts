@@ -3,18 +3,19 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 import { ClockService } from '@/common/clock/clock.service';
 import { Role } from '@/common/constants/roles';
-import { toDbDate } from '@/common/utils/date.util';
 import { AuditAction } from '@/modules/audit-logs/audit-action';
 import { SettingsService } from '@/modules/settings/settings.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
-  createE2eApp,
-  createIpSequence,
-  createUserFixture,
-  FakeClock,
-  loginToken,
-  resetDatabase,
-} from './e2e-utils';
+  createAttendance,
+  createHoliday,
+  createKiosk,
+  createLeaveRequest,
+  createLocation,
+  createShift,
+  createUser,
+} from '../factories';
+import { createE2eApp, createIpSequence, FakeClock, loginToken, resetDatabase } from './e2e-utils';
 
 /** Senin 19 Okt 2026 (WIB). */
 const MONDAY = '2026-10-19';
@@ -85,27 +86,13 @@ describe('Attendance scan (e2e)', () => {
     await resetDatabase(prisma);
     app.get(SettingsService).invalidate();
 
-    locationId = (
-      await prisma.location.create({
-        data: {
-          name: 'Kantor Pusat',
-          latitude: OFFICE.latitude.toFixed(7),
-          longitude: OFFICE.longitude.toFixed(7),
-        },
-      })
-    ).id;
-    kioskId = (
-      await prisma.kiosk.create({
-        data: { name: 'Lobi Utama', locationId, secret: 'a1'.repeat(64) },
-      })
-    ).id;
-    const shiftId = (
-      await prisma.shift.create({ data: { name: 'Reguler', startTime: '08:00', endTime: '17:00' } })
-    ).id;
-    await prisma.holiday.create({ data: { date: toDbDate(TUESDAY), name: 'Libur Uji' } });
+    locationId = (await createLocation(prisma, OFFICE)).id;
+    kioskId = (await createKiosk(prisma, { locationId })).id;
+    const shiftId = (await createShift(prisma)).id;
+    await createHoliday(prisma, TUESDAY);
 
     adminId = (
-      await createUserFixture(prisma, {
+      await createUser(prisma, {
         employeeCode: 'ADM',
         email: 'adm@att.test',
         role: Role.ADMIN,
@@ -125,7 +112,7 @@ describe('Attendance scan (e2e)', () => {
     ];
     for (const key of employees) {
       ids[key] = (
-        await createUserFixture(prisma, {
+        await createUser(prisma, {
           employeeCode: `E-${key.toUpperCase()}`,
           email: `${key.toLowerCase()}@att.test`,
           role: Role.EMPLOYEE,
@@ -133,16 +120,11 @@ describe('Attendance scan (e2e)', () => {
         })
       ).id;
     }
-    await prisma.leaveRequest.create({
-      data: {
-        userId: ids.onLeave,
-        type: 'SICK',
-        startDate: toDbDate(MONDAY),
-        endDate: toDbDate(TUESDAY),
-        totalDays: 2,
-        reason: 'Demam',
-        status: 'APPROVED',
-      },
+    await createLeaveRequest(prisma, {
+      userId: ids.onLeave,
+      startDate: MONDAY,
+      endDate: TUESDAY,
+      totalDays: 2,
     });
 
     adminToken = await loginToken(http, 'adm@att.test', nextIp());
@@ -459,9 +441,7 @@ describe('Attendance scan (e2e)', () => {
     });
 
     it('record ABSENT buatan admin untuk hari ini dilengkapi saat check-in (tidak duplikat)', async () => {
-      await prisma.attendance.create({
-        data: { userId: ids.absent, date: toDbDate(MONDAY), status: 'ABSENT' },
-      });
+      await createAttendance(prisma, { userId: ids.absent, date: MONDAY });
       clock.set(wib(MONDAY, '09:30:00'));
       const res = await scan('absent', await kioskQr()).expect(200);
       expect(res.body.data).toMatchObject({
