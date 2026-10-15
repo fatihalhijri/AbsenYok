@@ -41,7 +41,7 @@ seed yang dijalankan ulang bisa membuat izin tumpang tindih (data dev).
 
 | # | Prompt | Status | Tanggal | Commit | Catatan |
 |---|---|---|---|---|---|
-| FE-01 | [Setup Next.js, Tailwind, shadcn/ui & PWA](frontend/prompts/01-setup-nextjs-pwa.md) | ⬜ | | | |
+| FE-01 | [Setup Next.js, Tailwind, shadcn/ui & PWA](frontend/prompts/01-setup-nextjs-pwa.md) | ✅ | 2026-10-15 | _belum di-commit_ | Next.js 16.4 (Turbopack, `cacheComponents` + `partialPrefetching` default template), React 19.3, Tailwind 4, shadcn (`radix-nova`). PWA memakai **`@serwist/turbopack`** (SW di `/serwist/sw.js` via route handler; route hanya mengekspor `GET` + `generateStaticParams` karena segment config dilarang saat Cache Components). `shadcn add form` kosong untuk style ini → pakai `field` + React Hook Form `Controller`. Redirect `/`→`/login` di `next.config` (redirect di page memicu error validasi instant navigation). Lighthouse 12 tidak punya kategori PWA → installability diverifikasi via CDP `Page.getInstallabilityErrors` (0 error); offline diuji dengan emulasi offline pada halaman **dan** target service worker. `/login` & `/app` masih kerangka (FE-02/03/04). `dev:https` belum dicoba (memasang CA lokal). `npm audit`: 5 high hanya dev (`braces` via eslint-config-next, tanpa perbaikan); `--omit=dev` bersih. Tujuan rewrite proxy ditetapkan saat build (Docker: build arg). |
 | FE-02 | [Design System & Layout](frontend/prompts/02-design-system-layout.md) | ⬜ | | | |
 | FE-03 | [Autentikasi, API Client & Proteksi Route](frontend/prompts/03-auth-api-client.md) | ⬜ | | | Backend: `expiresIn` dalam detik; refresh dipicu oleh kode `TOKEN_EXPIRED`; cookie `ay_session` untuk middleware. |
 | FE-04 | [Beranda & Riwayat Karyawan](frontend/prompts/04-employee-home-history.md) | ⬜ | | | |

@@ -1,0 +1,12 @@
+.next
+out
+build
+coverage
+node_modules
+package-lock.json
+next-env.d.ts
+src/types/api.d.ts
+
+# Dokumen spesifikasi proyek — jangan diformat ulang
+PROMPT.md
+prompts
