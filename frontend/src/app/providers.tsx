@@ -8,6 +8,8 @@ import { type ReactNode, useState } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthBootstrap } from '@/features/auth/components/auth-bootstrap';
+// Efek samping: tangkap `beforeinstallprompt` sedini mungkin (dikirim sekali per muat halaman).
+import '@/lib/install-prompt';
 import { createQueryClient } from '@/lib/query-client';
 
 const isDev = process.env.NODE_ENV === 'development';

@@ -20,6 +20,8 @@ const clientSchema = z.object({
     .string()
     .default('/api/v1')
     .refine((value) => value.startsWith('/'), 'harus path relatif (mis. /api/v1) agar lewat proxy'),
+  /** Diisi otomatis dari package.json oleh next.config.ts. */
+  NEXT_PUBLIC_APP_VERSION: z.string().default('0.0.0'),
 });
 
 /** Env khusus server Next.js (tidak pernah dikirim ke browser). */
@@ -51,6 +53,7 @@ export const env: ClientEnv = parse(clientSchema, {
   NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
   NEXT_PUBLIC_APP_TIMEZONE: process.env.NEXT_PUBLIC_APP_TIMEZONE,
   NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE,
+  NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
 });
 
 /** Env server; dipanggil dari next.config.ts sehingga env salah langsung gagal saat dev/build. */

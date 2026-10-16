@@ -15,6 +15,10 @@ export type Holiday = Schemas['HolidayEntity'];
 export type AttendanceMethod = NonNullable<Attendance['checkInMethod']>;
 export type ScanResult = Schemas['ScanResultEntity'];
 export type ScanKioskInput = Schemas['ScanKioskDto'];
+export type PersonalQr = Schemas['PersonalQrEntity'];
+export type LeaveRequest = Schemas['LeaveRequestEntity'];
+export type LeaveQuota = Schemas['LeaveQuotaEntity'];
+export type ProfileShift = Schemas['ProfileShiftEntity'];
 export type LeaveType = Schemas['TodayLeaveEntity']['type'];
 export type Role = UserProfile['role'];
 

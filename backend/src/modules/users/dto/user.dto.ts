@@ -64,14 +64,14 @@ export class CreateUserDto {
   @MaxLength(150, { message: 'Email maksimal 150 karakter' })
   email: string;
 
-  @ApiPropertyOptional({ example: '081234567890', nullable: true })
+  @ApiPropertyOptional({ type: String, example: '081234567890', nullable: true })
   @IsOptional()
   @Transform(normalizePhone)
   @ValidateIf(notNull)
   @Matches(PHONE_PATTERN, { message: 'Nomor telepon harus 8–15 digit (boleh diawali +)' })
   phone?: string | null;
 
-  @ApiPropertyOptional({ example: 'Software Engineer', nullable: true })
+  @ApiPropertyOptional({ type: String, example: 'Software Engineer', nullable: true })
   @IsOptional()
   @Transform(trim)
   @ValidateIf(notNull)
@@ -94,19 +94,24 @@ export class CreateUserDto {
   @IsEnum(Role, { message: `Role harus salah satu dari: ${ROLES.join(', ')}` })
   role?: Role;
 
-  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
   @IsOptional()
   @ValidateIf(notNull)
   @IsUUID('all', { message: 'departmentId harus UUID' })
   departmentId?: string | null;
 
-  @ApiPropertyOptional({ format: 'uuid', nullable: true })
+  @ApiPropertyOptional({ type: String, format: 'uuid', nullable: true })
   @IsOptional()
   @ValidateIf(notNull)
   @IsUUID('all', { message: 'shiftId harus UUID' })
   shiftId?: string | null;
 
-  @ApiPropertyOptional({ format: 'uuid', nullable: true, description: 'Lokasi kerja default' })
+  @ApiPropertyOptional({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    description: 'Lokasi kerja default',
+  })
   @IsOptional()
   @ValidateIf(notNull)
   @IsUUID('all', { message: 'locationId harus UUID' })
@@ -142,7 +147,7 @@ export class UpdateMeDto {
   @MaxLength(100, { message: 'Nama maksimal 100 karakter' })
   name?: string;
 
-  @ApiPropertyOptional({ example: '081234567890', nullable: true })
+  @ApiPropertyOptional({ type: String, example: '081234567890', nullable: true })
   @IsOptional()
   @Transform(normalizePhone)
   @ValidateIf(notNull)
