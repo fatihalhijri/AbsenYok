@@ -105,4 +105,10 @@ export class PersonalQrEntity {
 
   @ApiProperty({ example: 60 })
   intervalSeconds: number;
+
+  @ApiProperty({
+    example: '2026-10-12T01:00:12.000Z',
+    description: 'Jam server saat token dibuat — klien menghitung selisih jam untuk jadwal refresh',
+  })
+  serverTime: Date;
 }

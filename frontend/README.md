@@ -140,6 +140,53 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
   Testing Library: render tiap kondisi, hitung mundur → `onRefresh` sekali, dan bukti isolasi —
   `deriveTodayState` tetap dipanggil 1× walau durasi berdetak).
 
+## Scan QR absen (FE-05)
+
+- **`/app/scan`** (`features/attendance/scan/scan-view.tsx`): lokasi mulai dipantau
+  (`usePreciseLocation`, `watchPosition` akurasi tinggi, simpan posisi terbaik yang masih segar)
+  bersamaan dengan kamera. Checklist izin Kamera/Lokasi (+ akurasi, merah bila > 100 m) dan panduan
+  Android Chrome / iOS Safari + "Coba lagi" bila izin ditolak. Bukan HTTPS / tanpa kamera / offline →
+  pemindai tidak dijalankan & pesan jelas.
+- **`QrScannerView`** (dipakai ulang FE-09): `@yudiel/react-qr-scanner`, kamera belakang, hanya
+  `qr_code`, viewfinder + garis animasi, tombol senter & ganti kamera buatan sendiri. Library
+  dimuat lewat `next/dynamic` hanya di halaman ini. Kamera dilepas saat tab disembunyikan, saat
+  dijeda, dan saat keluar halaman — stream di elemen video dihentikan sendiri (sekarang + 0,8 dtk +
+  2,5 dtk) karena penghentian oleh library bersifat async/best-effort.
+- **QR non-kiosk** (bukan `AY1.K.`) → toast "Ini bukan QR absensi AbsenYok", tidak dikirim.
+  **1 QR = 1 request**: `useScanFlow` mengunci sampai "Scan Ulang". Posisi ditunggu maks 8 dtk.
+- **`ScanResultSheet`**: sukses (centang SVG, jam besar, StatusBadge, pesan server, auto ke beranda
+  5 dtk) atau gagal dengan aksi per `error.code` (`scan-errors.ts`, murni & teruji).
+- **ZXing WASM** (polyfill BarcodeDetector untuk iOS Safari/Chrome desktop) dilayani dari
+  `public/zxing/` — disalin dari `node_modules` oleh `scripts/copy-zxing-wasm.mjs` lewat
+  `predev`/`prebuild` (di-gitignore), bukan dari CDN.
+- **Uji di HP** (kamera & lokasi butuh HTTPS): `npm run dev:https -- --hostname 0.0.0.0`, lalu buka
+  `https://<IP-laptop>:3000` dari HP di Wi-Fi yang sama (terima peringatan sertifikat).
+
+## QR personal, izin/cuti & profil (FE-06)
+
+- **`/app/my-qr`**: `QRCodeSVG` (≥ 260 px, `level="M"`, selalu hitam-di-atas-putih) + nama & NIP,
+  hitung mundur berbentuk cincin (komponen terpisah). `useMyQr` mengambil token 3 dtk sebelum
+  `expiresAt` dan sekali lagi tepat setelah jendela berganti (server memberi token per jendela
+  berjalan; token jendela sebelumnya masih diterima), dikoreksi selisih jam dari `serverTime`.
+  `placeholderData` menahan token lama selama memuat → QR berganti tanpa kedip.
+  **Wake Lock** (`hooks/use-wake-lock.ts`): diminta saat halaman dibuka, diminta ulang saat tab
+  terlihat lagi, dilepas saat keluar.
+- **`/app/leave`**: kartu sisa cuti tahunan (progress), tab Semua/Menunggu/Disetujui/Ditolak,
+  batalkan PENDING (ConfirmDialog), lihat lampiran (Blob dari endpoint terproteksi).
+- **`/app/leave/new`**: kartu tipe, kalender rentang (libur merah, bukan hari kerja redup, > 7 hari
+  ke belakang nonaktif), estimasi hari kerja live (`lib/working-days.ts`, divalidasi ulang server),
+  alasan ≥ 10 karakter, lampiran: pilih file / **ambil foto** (`capture="environment"`) → foto
+  dikompres di canvas (maks sisi 1600 px, kualitas 0.8) → divalidasi tipe & ≤ 2 MB **sebelum**
+  upload (`features/leave/attachment.ts`); wajib bila Sakit > 1 hari kerja. Multipart dengan progres.
+- **`/app/profile`**: avatar (pilih → crop persegi geser/zoom → 512×512 → upload), telepon
+  (dialog, normalisasi sama dengan backend), shift, lokasi, status perangkat; menu Ganti Password
+  (komponen FE-03), Tema, Pasang Aplikasi (`lib/install-prompt.ts`: `beforeinstallprompt` ditangkap
+  sekali untuk banner beranda & menu), Tentang (versi dari `package.json`), Keluar.
+- **Validasi instant-navigation (dev)**: `experimental.instantInsights.validationLevel =
+'manual-warning'` di `next.config.ts`. Area `/app`/`/admin`/`/kiosk` baru dirender setelah sesi
+  diverifikasi di browser (RoleGate), sehingga validasi otomatis per halaman tidak bisa merender
+  halamannya di server dan memunculkan error dev di semua halaman.
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi

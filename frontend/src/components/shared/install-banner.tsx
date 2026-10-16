@@ -1,32 +1,11 @@
 'use client';
 
 import { DownloadIcon, ShareIcon, SquarePlusIcon, XIcon } from 'lucide-react';
-import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { useLocalFlag } from '@/hooks/use-local-flag';
+import { useInstallPrompt } from '@/lib/install-prompt';
 
 const DISMISSED_KEY = 'ay-install-banner-dismissed';
-
-/** Event Chrome/Edge/Android sebelum menampilkan prompt instal (tidak ada di tipe DOM standar). */
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-type Platform = 'installed' | 'ios' | 'other';
-
-function detectPlatform(): Platform {
-  const standalone =
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  if (standalone) return 'installed';
-  const ua = navigator.userAgent;
-  // iPadOS 13+ mengaku "Macintosh" — cek dukungan sentuh.
-  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  return ios ? 'ios' : 'other';
-}
-
-const noopSubscribe = () => () => undefined;
 
 /**
  * Ajakan memasang PWA. Android/desktop: tombol "Pasang" memakai `beforeinstallprompt`.
@@ -34,33 +13,13 @@ const noopSubscribe = () => () => undefined;
  */
 export function InstallBanner() {
   const [dismissed, setDismissed] = useLocalFlag(DISMISSED_KEY);
-  // Saat prerender dianggap "installed" (tidak tampil) — dihitung ulang di browser.
-  const platform = useSyncExternalStore<Platform>(noopSubscribe, detectPlatform, () => 'installed');
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
-
-  useEffect(() => {
-    const onPrompt = (event: Event) => {
-      event.preventDefault(); // tampilkan banner sendiri, bukan mini-infobar bawaan
-      setInstallEvent(event as BeforeInstallPromptEvent);
-    };
-    const onInstalled = () => setInstallEvent(null);
-    window.addEventListener('beforeinstallprompt', onPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
+  const { platform, canPrompt, install } = useInstallPrompt();
 
   if (dismissed || platform === 'installed') return null;
-  if (platform === 'other' && !installEvent) return null;
+  if (platform === 'other' && !canPrompt) return null;
 
-  const install = async () => {
-    if (!installEvent) return;
-    await installEvent.prompt();
-    const { outcome } = await installEvent.userChoice;
-    setInstallEvent(null);
-    if (outcome === 'accepted') setDismissed(true);
+  const onInstall = async () => {
+    if ((await install()) === 'accepted') setDismissed(true);
   };
 
   return (
@@ -84,7 +43,7 @@ export function InstallBanner() {
         ) : (
           <>
             <p>Buka lebih cepat langsung dari layar utama, seperti aplikasi biasa.</p>
-            <Button size="sm" className="min-h-9" onClick={() => void install()}>
+            <Button size="sm" className="min-h-9" onClick={() => void onInstall()}>
               Pasang
             </Button>
           </>

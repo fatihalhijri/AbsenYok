@@ -62,6 +62,7 @@ interface PersonalQr {
   token: string;
   expiresAt: Date;
   intervalSeconds: number;
+  serverTime: Date;
 }
 
 const FILE_BODY = {
@@ -136,8 +137,9 @@ export class UsersController {
   })
   @ApiDataResponse(PersonalQrEntity)
   myQr(@CurrentUser('id') userId: string): PersonalQr {
-    const { token, expiresAt } = this.qr.generatePersonalToken(userId, this.clock.now());
-    return { token, expiresAt, intervalSeconds: this.qr.personalInterval };
+    const now = this.clock.now();
+    const { token, expiresAt } = this.qr.generatePersonalToken(userId, now);
+    return { token, expiresAt, intervalSeconds: this.qr.personalInterval, serverTime: now };
   }
 
   // ------------------------------- import XLSX -------------------------------

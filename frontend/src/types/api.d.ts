@@ -1317,7 +1317,7 @@ export interface components {
             /** @example Budi Santoso */
             name?: string;
             /** @example 081234567890 */
-            phone?: Record<string, never> | null;
+            phone?: string | null;
         };
         AvatarEntity: {
             /** @example /uploads/avatars/0b8f9e1a-2c3d-4e5f-8a9b-0c1d2e3f4a5b.webp */
@@ -1333,6 +1333,12 @@ export interface components {
             expiresAt: string;
             /** @example 60 */
             intervalSeconds: number;
+            /**
+             * Format: date-time
+             * @description Jam server saat token dibuat — klien menghitung selisih jam untuk jadwal refresh
+             * @example 2026-10-12T01:00:12.000Z
+             */
+            serverTime: string;
         };
         ImportResultEntity: {
             /**
@@ -1425,9 +1431,9 @@ export interface components {
             /** @example budi.santoso@absenyok.id */
             email: string;
             /** @example 081234567890 */
-            phone?: Record<string, never> | null;
+            phone?: string | null;
             /** @example Software Engineer */
-            position?: Record<string, never> | null;
+            position?: string | null;
             /**
              * @description Password minimal 8 karakter dan wajib mengandung huruf besar, huruf kecil, serta angka
              * @example Karyawan@123
@@ -1440,14 +1446,14 @@ export interface components {
              */
             role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
             /** Format: uuid */
-            departmentId?: Record<string, never> | null;
+            departmentId?: string | null;
             /** Format: uuid */
-            shiftId?: Record<string, never> | null;
+            shiftId?: string | null;
             /**
              * Format: uuid
              * @description Lokasi kerja default
              */
-            locationId?: Record<string, never> | null;
+            locationId?: string | null;
         };
         UpdateUserDto: {
             /**
@@ -1460,9 +1466,9 @@ export interface components {
             /** @example budi.santoso@absenyok.id */
             email?: string;
             /** @example 081234567890 */
-            phone?: Record<string, never> | null;
+            phone?: string | null;
             /** @example Software Engineer */
-            position?: Record<string, never> | null;
+            position?: string | null;
             /**
              * @description ADMIN hanya boleh membuat EMPLOYEE
              * @default EMPLOYEE
@@ -1470,14 +1476,14 @@ export interface components {
              */
             role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
             /** Format: uuid */
-            departmentId?: Record<string, never> | null;
+            departmentId?: string | null;
             /** Format: uuid */
-            shiftId?: Record<string, never> | null;
+            shiftId?: string | null;
             /**
              * Format: uuid
              * @description Lokasi kerja default
              */
-            locationId?: Record<string, never> | null;
+            locationId?: string | null;
         };
         UpdateUserStatusDto: {
             /** @example false */

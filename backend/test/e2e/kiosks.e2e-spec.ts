@@ -362,13 +362,20 @@ describe('Kiosks & QR (e2e)', () => {
   describe('QR personal', () => {
     it('EMPLOYEE: GET /users/me/qr → token personal miliknya, valid diverifikasi', async () => {
       const res = track(await as(employeeToken).get('/api/v1/users/me/qr').expect(200));
-      const data = res.body.data as { token: string; expiresAt: string; intervalSeconds: number };
+      const data = res.body.data as {
+        token: string;
+        expiresAt: string;
+        intervalSeconds: number;
+        serverTime: string;
+      };
 
       expect(data.token).toMatch(
         new RegExp(`^AY1\\.P\\.${employeeId}\\.\\d+\\.[A-Za-z0-9_-]{22}$`),
       );
       expect(data.intervalSeconds).toBe(60);
       expect(Date.parse(data.expiresAt)).toBeGreaterThan(Date.now());
+      expect(Math.abs(Date.parse(data.serverTime) - Date.now())).toBeLessThan(5000);
+      expect(Date.parse(data.expiresAt)).toBeGreaterThan(Date.parse(data.serverTime));
       expect(qr.verifyPersonalToken(data.token)).toMatchObject({ userId: employeeId });
     });
 

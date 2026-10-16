@@ -25,7 +25,7 @@ import {
   StatusBadge,
 } from '@/components/shared/status-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +41,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { ChangePasswordForm } from '@/features/auth/components/change-password-form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToday } from '@/hooks/use-today';
 import type { AttendanceStatus, LeaveStatus } from '@/types';
@@ -289,19 +288,6 @@ export function DemoClient() {
         onRetry={() => setFailing(false)}
         initialColumnVisibility={{ leaveStatus: false }}
       />
-
-      <Card className="max-w-xl">
-        <CardHeader>
-          <CardTitle>Ganti password</CardTitle>
-          <CardDescription>
-            Komponen FE-03 untuk halaman profil (FE-06). Menggunakan API sungguhan — setelah
-            berhasil, semua sesi keluar.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChangePasswordForm />
-        </CardContent>
-      </Card>
 
       <ConfirmDialog
         open={toDelete !== null}

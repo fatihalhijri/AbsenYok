@@ -1,5 +1,6 @@
 import { withSerwist } from '@serwist/turbopack';
 import type { NextConfig } from 'next';
+import packageJson from './package.json';
 import { env, getServerEnv } from './src/lib/env';
 
 // Validasi env saat `next dev`/`next build` dimuat — konfigurasi salah langsung gagal dengan jelas.
@@ -10,7 +11,17 @@ const { BACKEND_INTERNAL_URL } = getServerEnv();
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    // Area /app, /admin, /kiosk dirender setelah sesi diverifikasi di browser (token hanya di
+    // memori, RoleGate) sehingga validasi instant-navigation otomatis tidak bisa merender
+    // halamannya di server dan memunculkan error dev di setiap halaman. Validasi hanya untuk
+    // segmen yang menyatakan `export const instant` secara eksplisit.
+    instantInsights: { validationLevel: 'manual-warning' },
+  },
   poweredByHeader: false,
+  // Versi aplikasi untuk menu Profil → Tentang (di-inline ke bundle browser).
+  env: { NEXT_PUBLIC_APP_VERSION: packageJson.version },
+  allowedDevOrigins: ['192.168.1.8'],
   turbopack: {
     rules: {
       '*.css': {
