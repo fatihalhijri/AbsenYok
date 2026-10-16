@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ZXing WASM disalin dari node_modules (scripts/copy-zxing-wasm.mjs)
+/public/zxing/
+
+certificates

@@ -70,6 +70,53 @@
   --shadow-xl: 0 20px 40px -12px rgb(15 23 42 / 0.16);
 }
 
+/* Animasi layar scan (FE-05): garis pemindai, centang sukses, hitung mundur. */
+@theme {
+  --animate-scan-line: scan-line 2.2s ease-in-out infinite;
+  --animate-draw: draw 0.5s ease-out 0.15s both;
+  --animate-pop: pop 0.35s ease-out both;
+  --animate-deplete: deplete var(--deplete-duration, 5s) linear both;
+
+  @keyframes scan-line {
+    0%,
+    100% {
+      top: 6%;
+    }
+    50% {
+      top: 92%;
+    }
+  }
+  @keyframes draw {
+    from {
+      stroke-dashoffset: var(--dash, 100);
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(0.6);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.06);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes deplete {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+}
+
 :root {
   --radius: 0.75rem;
   --background: oklch(1 0 0);

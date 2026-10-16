@@ -1,6 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ScanKioskInput } from '@/types';
 import { attendanceApi, attendanceKeys } from './api';
 
 /**
@@ -25,5 +26,14 @@ export function useMyMonth(month: string | null, options: { enabled?: boolean } 
     queryKey: attendanceKeys.month(month ?? ''),
     queryFn: () => attendanceApi.myMonth(month ?? ''),
     enabled: month !== null && (options.enabled ?? true),
+  });
+}
+
+/** Kirim scan kiosk; sukses → muat ulang status hari ini & riwayat (`attendance/me/*`). */
+export function useScanAttendance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ScanKioskInput) => attendanceApi.scan(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: attendanceKeys.mine() }),
   });
 }

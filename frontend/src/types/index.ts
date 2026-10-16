@@ -13,6 +13,8 @@ export type MonthlyAttendance = Schemas['MonthlyAttendanceEntity'];
 export type MonthlySummary = Schemas['MonthlySummaryEntity'];
 export type Holiday = Schemas['HolidayEntity'];
 export type AttendanceMethod = NonNullable<Attendance['checkInMethod']>;
+export type ScanResult = Schemas['ScanResultEntity'];
+export type ScanKioskInput = Schemas['ScanKioskDto'];
 export type LeaveType = Schemas['TodayLeaveEntity']['type'];
 export type Role = UserProfile['role'];
 

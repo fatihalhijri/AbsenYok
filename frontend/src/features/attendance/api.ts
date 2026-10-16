@@ -1,5 +1,5 @@
 import { api } from '@/lib/api-client';
-import type { MonthlyAttendance, MyToday } from '@/types';
+import type { MonthlyAttendance, MyToday, ScanKioskInput, ScanResult } from '@/types';
 
 export const attendanceKeys = {
   all: ['attendance'] as const,
@@ -13,4 +13,6 @@ export const attendanceApi = {
   myToday: () => api.get<MyToday>('/attendance/me/today'),
   /** Riwayat satu bulan + ringkasan (`month=YYYY-MM`). */
   myMonth: (month: string) => api.get<MonthlyAttendance>('/attendance/me', { month }),
+  /** Scan QR kiosk → absen masuk/pulang otomatis. */
+  scan: (input: ScanKioskInput) => api.post<ScanResult>('/attendance/scan', input),
 };
