@@ -20,6 +20,13 @@ interface ScanResultSheetProps {
   onAction: (action: ScanErrorAction) => void;
   /** Disediakan agar bisa dimatikan di FE-09 (scan petugas). Default aktif. */
   autoRedirect?: boolean;
+  /**
+   * `compact` (scan petugas, FE-09): panel bawah non-modal berisi nama karyawan, tipe & status;
+   * kamera & daftar sesi tetap terlihat. Aksi tunggal: `scan-again`.
+   */
+  variant?: 'full' | 'compact';
+  /** Varian ringkas: tampilkan bilah hitung mundur sampai pemindai aktif lagi. */
+  autoContinueMs?: number;
 }
 
 const ACTION_ICONS: Record<ScanErrorAction, LucideIcon> = {
@@ -30,7 +37,36 @@ const ACTION_ICONS: Record<ScanErrorAction, LucideIcon> = {
 };
 
 /** Layar hasil scan (full-screen sheet): sukses dengan centang beranimasi, atau gagal + aksi. */
-export function ScanResultSheet({ outcome, onAction, autoRedirect = true }: ScanResultSheetProps) {
+export function ScanResultSheet({
+  outcome,
+  onAction,
+  autoRedirect = true,
+  variant = 'full',
+  autoContinueMs,
+}: ScanResultSheetProps) {
+  if (variant === 'compact') {
+    return (
+      <Sheet
+        open={outcome !== null}
+        modal={false}
+        onOpenChange={(open) => {
+          if (!open) onAction('scan-again');
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          // Non-modal: fokus tetap di halaman (petugas bisa langsung lanjut / ganti lokasi).
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          className="mx-auto w-full max-w-md gap-0 rounded-t-2xl px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        >
+          {outcome ? (
+            <CompactContent outcome={outcome} onAction={onAction} autoContinueMs={autoContinueMs} />
+          ) : null}
+        </SheetContent>
+      </Sheet>
+    );
+  }
   return (
     <Sheet
       open={outcome !== null}
@@ -159,11 +195,99 @@ function ErrorContent({
   );
 }
 
-function SuccessMark() {
+const TYPE_LABELS = { CHECK_IN: 'Absen Masuk', CHECK_OUT: 'Absen Pulang' } as const;
+
+function CompactContent({
+  outcome,
+  onAction,
+  autoContinueMs,
+}: {
+  outcome: ScanOutcome;
+  onAction: (action: ScanErrorAction) => void;
+  autoContinueMs?: number;
+}) {
+  const success = outcome.kind === 'success';
+  const view =
+    outcome.kind === 'error'
+      ? describeScanError(outcome.error.code, outcome.error.message, outcome.error.details)
+      : null;
+  const at =
+    outcome.kind === 'success'
+      ? outcome.result.type === 'CHECK_IN'
+        ? outcome.result.attendance.checkInAt
+        : outcome.result.attendance.checkOutAt
+      : null;
+
+  return (
+    <div
+      className="flex flex-col gap-4"
+      data-outcome={outcome.kind === 'success' ? 'success' : outcome.error.code}
+      aria-live="assertive"
+    >
+      <div className="flex items-center gap-4">
+        {success ? (
+          <SuccessMark className="size-14 shrink-0" />
+        ) : (
+          <ErrorMark className="size-14 shrink-0" />
+        )}
+        <div className="min-w-0 flex-1 space-y-1">
+          {outcome.kind === 'success' ? (
+            <>
+              <SheetTitle className="truncate text-lg font-bold">
+                {outcome.result.user.name}
+              </SheetTitle>
+              <SheetDescription className="truncate font-mono text-xs">
+                {outcome.result.user.employeeCode}
+              </SheetDescription>
+            </>
+          ) : (
+            <>
+              <SheetTitle className="text-lg font-bold">{view?.title}</SheetTitle>
+              <SheetDescription className="text-sm text-foreground/80">
+                {view?.message}
+              </SheetDescription>
+            </>
+          )}
+        </div>
+      </div>
+      {outcome.kind === 'success' ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-muted/70 px-3 py-2">
+          <span className="font-semibold">{TYPE_LABELS[outcome.result.type]}</span>
+          {at ? <span className="text-xl font-bold tabular-nums">{formatTime(at)}</span> : null}
+          <StatusBadge
+            status={outcome.result.attendance.status as AttendanceStatus}
+            className="ml-auto"
+          />
+        </div>
+      ) : null}
+      <div className="space-y-2">
+        <Button
+          className="h-11 w-full"
+          variant={success ? 'default' : 'outline'}
+          onClick={() => onAction('scan-again')}
+        >
+          <ScanQrCodeIcon aria-hidden="true" />
+          {success ? 'Scan berikutnya' : 'Scan ulang'}
+        </Button>
+        {autoContinueMs ? (
+          <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+            <div
+              key={outcome.kind === 'success' ? outcome.result.attendance.id : outcome.error.code}
+              className="h-full origin-left animate-deplete rounded-full bg-primary"
+              style={{ '--deplete-duration': `${autoContinueMs}ms` } as CSSProperties}
+            />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function SuccessMark({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 96 96"
-      className="size-28 animate-pop text-success motion-reduce:animate-none"
+      className={cn('size-28 animate-pop text-success motion-reduce:animate-none', className)}
       aria-hidden="true"
     >
       <circle cx="48" cy="48" r="44" className="fill-success/12" />
@@ -183,11 +307,11 @@ function SuccessMark() {
   );
 }
 
-function ErrorMark() {
+function ErrorMark({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 96 96"
-      className="size-28 animate-pop text-destructive motion-reduce:animate-none"
+      className={cn('size-28 animate-pop text-destructive motion-reduce:animate-none', className)}
       aria-hidden="true"
     >
       <circle cx="48" cy="48" r="44" className="fill-destructive/10" />

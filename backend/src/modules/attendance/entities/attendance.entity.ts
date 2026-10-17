@@ -273,15 +273,75 @@ class AttendanceLeaveRefEntity {
   status: string;
 }
 
+export class ShiftSnapshotEntity {
+  @ApiProperty({ example: 'Reguler' })
+  name: string;
+
+  @ApiProperty({ example: '08:00' })
+  startTime: string;
+
+  @ApiProperty({ example: '17:00' })
+  endTime: string;
+
+  @ApiProperty({ example: 15 })
+  lateToleranceMinutes: number;
+}
+
+class CorrectionActorEntity {
+  @ApiProperty({ format: 'uuid' })
+  id: string;
+
+  @ApiProperty({ example: 'Admin HR' })
+  name: string;
+}
+
+export class AttendanceCorrectionEntity {
+  @ApiProperty({ format: 'uuid', description: 'ID audit log' })
+  id: string;
+
+  @ApiProperty({ enum: ['ATTENDANCE_CORRECTED', 'ATTENDANCE_MANUAL_CREATED'] })
+  action: 'ATTENDANCE_CORRECTED' | 'ATTENDANCE_MANUAL_CREATED';
+
+  @ApiProperty({ example: '2026-10-19T03:15:00.000Z' })
+  createdAt: Date;
+
+  @ApiPropertyOptional({ type: CorrectionActorEntity, nullable: true })
+  actor: CorrectionActorEntity | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: 'Koreksi sesuai rekaman CCTV lobi',
+  })
+  reason: string | null;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+    description: 'Nilai sebelum koreksi (status, checkInAt, checkOutAt, …)',
+  })
+  before: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: true,
+    nullable: true,
+    description: 'Nilai sesudah koreksi',
+  })
+  after: Record<string, unknown> | null;
+}
+
 export class AttendanceDetailEntity extends AttendanceListItemEntity {
   @ApiProperty({ format: 'uuid' })
   userId: string;
 
   @ApiPropertyOptional({
+    type: () => ShiftSnapshotEntity,
     nullable: true,
-    example: { name: 'Reguler', startTime: '08:00', endTime: '17:00', lateToleranceMinutes: 15 },
+    description: 'Aturan shift saat absen dibuat — dasar hitung ulang koreksi',
   })
-  shiftSnapshot: Record<string, unknown> | null;
+  shiftSnapshot: ShiftSnapshotEntity | null;
 
   @ApiPropertyOptional({ type: IdNameEntity, nullable: true, description: 'Petugas (QR personal)' })
   scannedBy: IdNameEntity | null;
@@ -291,6 +351,12 @@ export class AttendanceDetailEntity extends AttendanceListItemEntity {
 
   @ApiProperty({ type: [ScanLogEntity], description: 'Semua percobaan scan user pada tanggal ini' })
   scanLogs: ScanLogEntity[];
+
+  @ApiProperty({
+    type: [AttendanceCorrectionEntity],
+    description: 'Riwayat koreksi & input manual (audit log), terbaru dulu',
+  })
+  corrections: AttendanceCorrectionEntity[];
 
   @ApiProperty({ example: '2026-10-19T00:50:20.000Z' })
   createdAt: Date;

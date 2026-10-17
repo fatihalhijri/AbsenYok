@@ -37,6 +37,17 @@ export type TrendPoint = Schemas['TrendPointEntity'];
 export type LateRanking = Schemas['LateRankingEntity'];
 export type RecentActivity = Schemas['RecentActivityEntity'];
 export type AttendanceListItem = Schemas['AttendanceListItemEntity'];
+export type AttendanceDetail = Schemas['AttendanceDetailEntity'];
+export type AttendanceCorrection = Schemas['AttendanceCorrectionEntity'];
+export type ShiftSnapshot = Schemas['ShiftSnapshotEntity'];
+export type ScanLog = Schemas['ScanLogEntity'];
+export type ManualAttendanceInput = Schemas['ManualAttendanceDto'];
+export type CorrectAttendanceInput = Schemas['CorrectAttendanceDto'];
+export type PersonalScanInput = Schemas['PersonalScanDto'];
+export type MonthlyReport = Schemas['MonthlyReportEntity'];
+export type MonthlyReportRow = Schemas['MonthlyReportRowEntity'];
+export type AuditLog = Schemas['AuditLogEntity'];
+export type AuditAction = AuditLog['action'];
 export type LeaveType = Schemas['TodayLeaveEntity']['type'];
 export type Role = UserProfile['role'];
 

@@ -2255,6 +2255,16 @@ export interface components {
             /** @example 342 */
             durationMs: number;
         };
+        ShiftSnapshotEntity: {
+            /** @example Reguler */
+            name: string;
+            /** @example 08:00 */
+            startTime: string;
+            /** @example 17:00 */
+            endTime: string;
+            /** @example 15 */
+            lateToleranceMinutes: number;
+        };
         AttendanceLeaveRefEntity: {
             /** Format: uuid */
             id: string;
@@ -2265,6 +2275,37 @@ export interface components {
             type: "SICK" | "PERMIT" | "ANNUAL";
             /** @example APPROVED */
             status: string;
+        };
+        CorrectionActorEntity: {
+            /** Format: uuid */
+            id: string;
+            /** @example Admin HR */
+            name: string;
+        };
+        AttendanceCorrectionEntity: {
+            /**
+             * Format: uuid
+             * @description ID audit log
+             */
+            id: string;
+            /** @enum {string} */
+            action: "ATTENDANCE_CORRECTED" | "ATTENDANCE_MANUAL_CREATED";
+            /**
+             * Format: date-time
+             * @example 2026-10-19T03:15:00.000Z
+             */
+            createdAt: string;
+            actor?: components["schemas"]["CorrectionActorEntity"] | null;
+            /** @example Koreksi sesuai rekaman CCTV lobi */
+            reason?: string | null;
+            /** @description Nilai sebelum koreksi (status, checkInAt, checkOutAt, …) */
+            before?: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Nilai sesudah koreksi */
+            after?: {
+                [key: string]: unknown;
+            } | null;
         };
         AttendanceDetailEntity: {
             /** Format: uuid */
@@ -2318,20 +2359,15 @@ export interface components {
             user: components["schemas"]["AttendanceUserEntity"];
             /** Format: uuid */
             userId: string;
-            /**
-             * @example {
-             *       "name": "Reguler",
-             *       "startTime": "08:00",
-             *       "endTime": "17:00",
-             *       "lateToleranceMinutes": 15
-             *     }
-             */
-            shiftSnapshot?: Record<string, never> | null;
+            /** @description Aturan shift saat absen dibuat — dasar hitung ulang koreksi */
+            shiftSnapshot?: components["schemas"]["ShiftSnapshotEntity"] | null;
             /** @description Petugas (QR personal) */
             scannedBy?: components["schemas"]["IdNameEntity"] | null;
             leaveRequest?: components["schemas"]["AttendanceLeaveRefEntity"] | null;
             /** @description Semua percobaan scan user pada tanggal ini */
             scanLogs: components["schemas"]["ScanLogEntity"][];
+            /** @description Riwayat koreksi & input manual (audit log), terbaru dulu */
+            corrections: components["schemas"]["AttendanceCorrectionEntity"][];
             /**
              * Format: date-time
              * @example 2026-10-19T00:50:20.000Z

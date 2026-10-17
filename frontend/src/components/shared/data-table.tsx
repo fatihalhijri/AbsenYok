@@ -27,7 +27,7 @@ import {
   Settings2Icon,
   XIcon,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { Fragment, type MouseEvent, type ReactNode, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -132,6 +132,27 @@ export interface DataTableProps<TData extends RowData> {
   initialColumnVisibility?: ColumnVisibilityState;
   pageSizeOptions?: number[];
   className?: string;
+  /**
+   * Klik baris (mis. buka detail). Klik pada elemen interaktif di dalam baris diabaikan; sediakan
+   * juga tombol/tautan di salah satu sel agar bisa diakses keyboard.
+   */
+  onRowClick?: (row: TData) => void;
+  /** Baris tambahan di bawah baris yang id-nya ada di `expandedRowIds` (mis. detail metadata). */
+  renderRowDetail?: (row: TData) => ReactNode;
+  expandedRowIds?: ReadonlySet<string>;
+  /** Class tambahan per baris (mis. sorotan). */
+  rowClassName?: (row: TData) => string | undefined;
+}
+
+/** Elemen interaktif di dalam baris yang tidak memicu `onRowClick`. */
+const INTERACTIVE =
+  'a, button, input, label, select, textarea, [role="checkbox"], [role="menuitem"]';
+
+/** Abaikan klik pada kontrol di dalam baris & klik dari portal (menu/dialog) yang ikut bubble. */
+function isInteractiveClick(event: MouseEvent<HTMLElement>): boolean {
+  const target = event.target;
+  if (!(target instanceof Element) || !event.currentTarget.contains(target)) return true;
+  return target.closest(INTERACTIVE) !== null;
 }
 
 /**
@@ -158,6 +179,10 @@ export function DataTable<TData extends RowData>({
   initialColumnVisibility,
   pageSizeOptions = [10, 20, 50, 100],
   className,
+  onRowClick,
+  renderRowDetail,
+  expandedRowIds,
+  rowClassName,
 }: DataTableProps<TData>) {
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityState>(
     initialColumnVisibility ?? {},
@@ -305,22 +330,48 @@ export function DataTable<TData extends RowData>({
                 </TableCell>
               </TableRow>
             ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
+              table.getRowModel().rows.map((row) => {
+                const expanded = renderRowDetail && expandedRowIds?.has(row.id);
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow
+                      data-state={expanded ? 'open' : undefined}
                       className={cn(
-                        'h-12',
-                        cell.column.columnDef.meta?.className,
-                        cell.column.columnDef.meta?.cellClassName,
+                        onRowClick && 'cursor-pointer',
+                        expanded && 'border-b-0 bg-muted/30',
+                        rowClassName?.(row.original),
                       )}
+                      onClick={
+                        onRowClick
+                          ? (event) => {
+                              if (!isInteractiveClick(event)) onRowClick(row.original);
+                            }
+                          : undefined
+                      }
                     >
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'h-12',
+                            cell.column.columnDef.meta?.className,
+                            cell.column.columnDef.meta?.cellClassName,
+                          )}
+                        >
+                          <table.FlexRender cell={cell} />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {expanded ? (
+                      <TableRow className="bg-muted/30 hover:bg-muted/30">
+                        <TableCell colSpan={visibleColumns} className="p-0 whitespace-normal">
+                          {renderRowDetail(row.original)}
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
+                  </Fragment>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -414,7 +465,15 @@ function PageButton({
 }
 
 /** Input pencarian dengan debounce 400 ms; halaman kembali ke 1 setiap kata kunci berubah. */
-function SearchInput({ search, onSearched }: { search: DataTableSearch; onSearched: () => void }) {
+/** Input pencarian ber-debounce (400 ms) — dipakai DataTable & daftar non-tabel. */
+export function SearchInput({
+  search,
+  onSearched,
+}: {
+  search: DataTableSearch;
+  /** Dipanggil setelah kata kunci diterapkan (mis. reset halaman). */
+  onSearched?: () => void;
+}) {
   const [text, setText] = useState(search.value);
   const debounced = useDebouncedValue(text.trim(), SEARCH_DEBOUNCE_MS);
   const latest = useRef({ search, onSearched });
@@ -435,7 +494,7 @@ function SearchInput({ search, onSearched }: { search: DataTableSearch; onSearch
     const { search: current, onSearched: resetPage } = latest.current;
     if (debounced === current.value) return;
     current.onChange(debounced);
-    resetPage();
+    resetPage?.();
   }, [debounced]);
 
   return (
@@ -450,7 +509,7 @@ function SearchInput({ search, onSearched }: { search: DataTableSearch; onSearch
         onChange={(event) => setText(event.target.value)}
         placeholder={search.placeholder ?? 'Cari…'}
         aria-label={search.placeholder ?? 'Cari'}
-        className="h-10 pr-9 pl-9"
+        className="h-10 pr-9 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
       />
       {text ? (
         <button

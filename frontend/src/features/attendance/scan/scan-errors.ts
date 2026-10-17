@@ -198,3 +198,18 @@ export function rejectMessage(value: string): string {
     ? 'Ini QR personal. Pindai QR yang tampil di layar kiosk kantor.'
     : 'Ini bukan QR absensi AbsenYok';
 }
+
+/** Prefix token QR personal karyawan (docs/QR-SECURITY.md §B) — dipindai petugas (FE-09). */
+export const PERSONAL_QR_PREFIX = 'AY1.P.';
+
+/** Validasi cepat di klien untuk scan petugas: hanya QR personal yang dikirim ke server. */
+export function isPersonalQr(value: string): boolean {
+  return value.startsWith(PERSONAL_QR_PREFIX) && value.split('.').length === 5;
+}
+
+/** Pesan penolakan QR non-personal pada pemindai petugas (toast). */
+export function rejectPersonalMessage(value: string): string {
+  return value.startsWith(KIOSK_QR_PREFIX)
+    ? 'Ini QR kiosk. Minta karyawan membuka menu QR Saya di aplikasinya.'
+    : 'Ini bukan QR personal AbsenYok';
+}
