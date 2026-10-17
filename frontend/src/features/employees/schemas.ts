@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { passwordSchema } from '@/features/auth/schemas';
 import type { CreateUserInput, Role, UpdateUserInput, User } from '@/types';
 

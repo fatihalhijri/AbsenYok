@@ -27,10 +27,12 @@ export const metadata: Metadata = { title: 'Dashboard' };
 /** Dashboard admin — setiap widget memuat datanya sendiri (skeleton masing-masing). */
 export default function AdminDashboardPage() {
   return (
-    <div className="space-y-6">
+    // Di HP grafik dipindah ke paling bawah (order-last): angka & daftar tampil lebih dulu dan
+    // recharts tidak dipasang saat halaman dibuka. Desktop (xl) tetap urutan semula.
+    <div className="flex flex-col gap-6">
       <PageHeader title="Dashboard" description="Ringkasan kehadiran hari ini." />
       <SummaryCards />
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="order-last grid gap-6 xl:order-none xl:grid-cols-3">
         <div className="xl:col-span-2">
           <RenderWhenVisible fallback={chartSkeleton()}>
             <AttendanceTrend />

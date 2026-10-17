@@ -16,7 +16,7 @@ cp .env.example .env.local   # sesuaikan bila backend tidak di localhost:4000
 npm run dev                  # http://localhost:3000
 ```
 
-Env divalidasi zod di `src/lib/env.ts` saat `next.config.ts` dimuat — nilai salah langsung gagal
+Env divalidasi zod di `src/lib/env.server.ts` saat `next.config.ts` dimuat (dev/build) — nilai salah langsung gagal
 dengan pesan jelas.
 
 | Variabel                   | Keterangan                                                        |
@@ -147,9 +147,13 @@ http://localhost:3000` atau `ngrok http 3000`, dan buka URL `https://…` yang d
 
 ## Optimasi & keamanan (FE-10)
 
-- **Lighthouse mobile** (build produksi, simulasi 4G + CPU 4×): `/app` 96, `/app/scan` 96,
-  `/login` 86 (LCP teramati 0,3 dtk; simulasi Lantern 3,3 dtk karena memperhitungkan seluruh JS
-  framework), `/admin` 89 di mobile / 100 di desktop. Accessibility, Best Practices & SEO 100.
+- **Lighthouse mobile** (build produksi, simulasi 4G + CPU 4×): `/login` 92–93, `/app` 96–97,
+  `/app/scan` 93–96, `/admin` 96–97 (desktop 100). Accessibility, Best Practices & SEO 100.
+- Halaman pembuka ringan: Zod tidak lagi di bundle awal (env publik divalidasi saat build di
+  `lib/env.server.ts`; form login memakai validasi bawaan React Hook Form; skema lain mengimpor
+  Zod lewat `lib/zod.ts`), `Toaster` dimuat setelah hydration, `TooltipProvider` hanya di area
+  admin. Area ber-`RoleGate` dirender lewat `useDeferredValue` (render dicicil, tanpa satu long
+  task besar). Di HP, grafik dashboard berada paling bawah dan baru dipasang saat terlihat.
 - Komponen berat via `next/dynamic`: pemindai QR (ZXing), recharts (dashboard & laporan — grafik
   dashboard baru dipasang saat mendekati viewport), Leaflet; `qrcode.react` hanya di halaman QR.
   Library pemindai hanya ada di `/app/scan` & `/admin/scan-personal` (diverifikasi per rute).

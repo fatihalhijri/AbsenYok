@@ -4,13 +4,18 @@ import { SerwistProvider } from '@serwist/turbopack/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from 'next-themes';
+import dynamic from 'next/dynamic';
 import { type ReactNode, useState } from 'react';
-import { Toaster } from '@/components/ui/sonner';
-import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthBootstrap } from '@/features/auth/components/auth-bootstrap';
 // Efek samping: tangkap `beforeinstallprompt` sedini mungkin (dikirim sekali per muat halaman).
 import '@/lib/install-prompt';
 import { createQueryClient } from '@/lib/query-client';
+
+// Toaster (sonner) dimuat setelah hydration: tidak dibutuhkan untuk tampilan pertama, jadi tidak
+// ikut membebani halaman pembuka (login/beranda). Tooltip hanya dipakai area admin (AdminShell).
+const Toaster = dynamic(() => import('@/components/ui/sonner').then((m) => m.Toaster), {
+  ssr: false,
+});
 
 const isDev = process.env.NODE_ENV === 'development';
 const isServer = typeof window === 'undefined';
@@ -38,11 +43,9 @@ export function Providers({ children }: { children: ReactNode }) {
           // Perbedaan atribut `type` aman karena next-themes memasang suppressHydrationWarning.
           scriptProps={{ type: isServer ? undefined : 'application/json' }}
         >
-          <TooltipProvider delayDuration={300}>
-            <AuthBootstrap />
-            {children}
-            <Toaster richColors closeButton position="top-center" />
-          </TooltipProvider>
+          <AuthBootstrap />
+          {children}
+          <Toaster richColors closeButton position="top-center" />
         </ThemeProvider>
         {isDev ? <ReactQueryDevtools buttonPosition="bottom-left" /> : null}
       </QueryClientProvider>

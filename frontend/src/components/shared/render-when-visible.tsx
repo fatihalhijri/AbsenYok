@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, startTransition, useEffect, useRef, useState } from 'react';
 
 interface RenderWhenVisibleProps {
   children: ReactNode;
@@ -29,7 +29,8 @@ export function RenderWhenVisible({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
+          // Transition: render komponen berat dicicil React (tidak memblokir input).
+          startTransition(() => setVisible(true));
           observer.disconnect();
         }
       },

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 
 /** Aturan password = backend (BUSINESS-RULES §13): ≥ 8 karakter, huruf besar, huruf kecil, angka. */
 export const PASSWORD_RULES = [
@@ -8,11 +8,11 @@ export const PASSWORD_RULES = [
   { id: 'digit', label: 'Angka (0–9)', test: (value: string) => /\d/.test(value) },
 ] as const;
 
-export const loginSchema = z.object({
-  email: z.string().trim().min(1, 'Email wajib diisi').pipe(z.email('Format email tidak valid')),
-  password: z.string().min(1, 'Password wajib diisi'),
-});
-export type LoginInput = z.infer<typeof loginSchema>;
+/** Input login. Validasinya di form login sendiri (tanpa Zod — halaman pertama, bundle minimal). */
+export interface LoginInput {
+  email: string;
+  password: string;
+}
 
 export const passwordSchema = z
   .string()

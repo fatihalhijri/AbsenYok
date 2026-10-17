@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { MIN_REASON_LENGTH } from './rules';
 
 /** Form pengajuan; aturan lintas field (lampiran wajib, batas tanggal) dicek di komponen. */

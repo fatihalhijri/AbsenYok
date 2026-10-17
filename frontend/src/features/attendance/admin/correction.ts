@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { APP_TIMEZONE, DATE_FORMAT, dayjs, formatTime, toDateString } from '@/lib/date';
 import type {
   AttendanceDetail,
