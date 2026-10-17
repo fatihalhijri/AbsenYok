@@ -187,6 +187,24 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
   diverifikasi di browser (RoleGate), sehingga validasi otomatis per halaman tidak bisa merender
   halamannya di server dan memunculkan error dev di semua halaman.
 
+## Layar kiosk QR dinamis (FE-07)
+
+- **`/kiosk/[kioskId]`** (tanpa navigasi, gelap paksa, `KioskGate` khusus ADMIN/SUPER_ADMIN): QR besar
+  `level="H"` + logo di tengah dengan cincin hitung mundur & crossfade (kiri), jam server besar,
+  nama kiosk/lokasi, dan **"Baru saja absen"** (kanan; portrait bertumpuk). Buka dari
+  `/admin/kiosks` → **Buka Layar Kiosk** (tab baru), login sekali di perangkat kiosk.
+- **Jadwal token** (`lib/qr-schedule.ts`, dipakai juga QR personal): diminta `expiresAt − 1 dtk` dan
+  tepat setelah jendela berganti, dikoreksi offset `serverTime`. QR disembunyikan bila token mendekati
+  batas sah (backend menerima jendela berjalan + sebelumnya) → tidak pernah menampilkan token basi.
+- **Ketahanan** (`features/kiosk/use-kiosk-qr.ts`): gagal/offline → overlay "Koneksi terputus…" dan
+  **QR disembunyikan**, coba lagi 2 → 4 → 8 → 16 → 30 dtk, pulih otomatis (event `online`/tab terlihat
+  → langsung dicoba). Kiosk dihapus/nonaktif → "Kiosk tidak tersedia" (tetap dicek berkala). Sesi
+  ditolak → "Sesi kiosk berakhir" (tidak dialihkan diam-diam ke login). Server tak terjangkau saat
+  halaman dibuka → overlay + coba ulang otomatis. Wake Lock, layar penuh, kursor hilang setelah 3 dtk
+  diam, reload penuh tiap 6 jam (menunggu online).
+- **"Baru saja absen"**: polling 5 dtk, entri baru masuk dari atas & disorot 6 dtk, bunyi "ding" (bisa
+  dimatikan; browser baru mengizinkan suara setelah ada klik — mis. tombol layar penuh/suara).
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi

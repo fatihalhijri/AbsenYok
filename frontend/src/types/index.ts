@@ -19,6 +19,9 @@ export type PersonalQr = Schemas['PersonalQrEntity'];
 export type LeaveRequest = Schemas['LeaveRequestEntity'];
 export type LeaveQuota = Schemas['LeaveQuotaEntity'];
 export type ProfileShift = Schemas['ProfileShiftEntity'];
+export type Kiosk = Schemas['KioskEntity'];
+export type KioskQr = Schemas['KioskQrEntity'];
+export type RecentScan = Schemas['RecentScanEntity'];
 export type LeaveType = Schemas['TodayLeaveEntity']['type'];
 export type Role = UserProfile['role'];
 

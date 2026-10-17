@@ -15,7 +15,12 @@ export function AuthBootstrap() {
   const router = useRouter();
 
   useEffect(() => {
-    api.setSessionExpiredHandler((nextPath) => router.replace(loginPathWithNext(nextPath)));
+    api.setSessionExpiredHandler((nextPath) => {
+      // Layar kiosk tak dijaga orang: tampilkan "Sesi kiosk berakhir" (KioskGate), bukan
+      // berpindah diam-diam ke halaman login.
+      if (nextPath === '/kiosk' || nextPath?.startsWith('/kiosk/')) return;
+      router.replace(loginPathWithNext(nextPath));
+    });
   }, [router]);
 
   useEffect(() => {
