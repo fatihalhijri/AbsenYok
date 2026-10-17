@@ -86,7 +86,9 @@ npm install
 npm run dev                     # http://localhost:3000
 ```
 
-> Kamera di browser HP **hanya jalan di HTTPS**. Untuk uji di HP gunakan `next dev --experimental-https` atau tunnel (ngrok / Cloudflare Tunnel).
+> Kamera di browser HP **hanya jalan di HTTPS**. Untuk uji di HP gunakan `npm run dev:https` atau tunnel (ngrok / Cloudflare Tunnel) — lihat [frontend/README.md](frontend/README.md#uji-kamera--gps-di-hp).
+>
+> Semua sekaligus dengan Docker: `docker compose --profile app up -d --build` → http://localhost:3000 (lihat [Deploy](#deploy)).
 
 ### Akun default hasil seed
 
@@ -97,6 +99,119 @@ npm run dev                     # http://localhost:3000
 | EMPLOYEE | budi@absenyok.id | Karyawan@123 |
 
 **Segera ganti password setelah deploy ke produksi.**
+
+---
+
+## Deploy
+
+### Arsitektur produksi (domain tunggal)
+
+```
+Browser ──HTTPS──▶ reverse proxy (Caddy/Nginx) ──▶ frontend :3000 (Next.js standalone)
+                    absen.perusahaan.co.id              │  /api/* & /uploads/* (rewrite)
+                                                        ▼
+                                                  backend :4000 ──▶ MySQL :3306
+                                                  (jaringan internal, tidak dibuka publik)
+```
+
+- Satu domain, mis. `absen.perusahaan.co.id`, diarahkan reverse proxy ke **frontend** saja.
+  Frontend mem-proxy `/api` & `/uploads` ke backend lewat jaringan internal Docker
+  (`BACKEND_INTERNAL_URL=http://backend:4000`, ditanam saat build image frontend). Cookie refresh
+  token tetap first-party, tanpa CORS.
+- **HTTPS wajib**: kamera & geolocation hanya jalan di secure context. Di `backend/.env` set
+  `COOKIE_SECURE=true`, `CORS_ORIGIN=https://absen.perusahaan.co.id`, `NODE_ENV=production`, dan
+  secret acak panjang (`JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `QR_SIGNING_SECRET` — mis.
+  `openssl rand -hex 64`). Frontend sudah mengirim HSTS & header keamanan lain.
+- Backend mempercayai `X-Forwarded-For` dari jaringan privat (`trust proxy`), jadi IP klien asli
+  tetap tercatat (rate limit login & audit log) selama reverse proxy meneruskan header itu.
+
+Contoh **Caddy** (sertifikat Let's Encrypt otomatis; container Caddy di jaringan Compose yang sama):
+
+```caddy
+absen.perusahaan.co.id {
+  encode zstd gzip
+  reverse_proxy frontend:3000
+}
+```
+
+Contoh **Nginx** (sertifikat dari certbot):
+
+```nginx
+server {
+  listen 443 ssl http2;
+  server_name absen.perusahaan.co.id;
+  ssl_certificate     /etc/letsencrypt/live/absen.perusahaan.co.id/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/absen.perusahaan.co.id/privkey.pem;
+  client_max_body_size 5m;               # unggah lampiran izin & avatar
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+server { listen 80; server_name absen.perusahaan.co.id; return 301 https://$host$request_uri; }
+```
+
+### Menjalankan dengan Docker Compose
+
+```bash
+cp backend/.env.example backend/.env       # isi nilai produksi (lihat di atas)
+docker compose --profile app up -d --build  # MySQL + backend + frontend → http://localhost:3000
+# Pertama kali: data awal (akun Super Admin dll.) dari mesin yang punya source & Node.js
+cd backend && DATABASE_URL="mysql://absenyok:<password>@<host-db>:3306/absenyok" npm run seed
+```
+
+- Migrasi database dijalankan otomatis saat container backend start (`prisma migrate deploy`).
+- Port 3306 sudah dipakai MySQL lokal? `MYSQL_PORT=3307 docker compose --profile app up -d`.
+- Di server produksi: ganti password MySQL di `docker-compose.yml`, **jangan** publikasikan port
+  3306/4000/8080 (hapus `ports` backend, MySQL & Adminer atau batasi ke `127.0.0.1`), dan ganti
+  password akun seed segera setelah login pertama.
+- Semua service punya healthcheck; status: `docker compose ps`.
+
+### Backup MySQL harian (simpan 14 hari)
+
+```bash
+# /usr/local/bin/absenyok-backup.sh
+set -euo pipefail
+DIR=/var/backups/absenyok
+mkdir -p "$DIR"
+docker exec absenyok-mysql sh -c \
+  'exec mysqldump --single-transaction --routines --triggers -uroot -p"$MYSQL_ROOT_PASSWORD" absenyok' \
+  | gzip > "$DIR/absenyok-$(date +%F).sql.gz"
+# File unggahan (lampiran izin, avatar) dari volume uploads
+docker run --rm -v absenyok_uploads:/data -v "$DIR":/backup alpine \
+  tar czf "/backup/uploads-$(date +%F).tar.gz" -C /data .
+find "$DIR" -type f -mtime +14 -delete
+```
+
+```cron
+# crontab -e  → setiap hari pukul 02:00
+0 2 * * * /usr/local/bin/absenyok-backup.sh >> /var/log/absenyok-backup.log 2>&1
+```
+
+Uji pemulihan berkala: `gunzip -c absenyok-YYYY-MM-DD.sql.gz | docker exec -i absenyok-mysql
+mysql -uroot -p<password> absenyok`. Simpan salinan backup di luar server (object storage).
+
+### Monitoring & log
+
+- **Health check**: `GET https://absen.perusahaan.co.id/api/v1/health` →
+  `{ "status": "ok", "db": "up", "time": … }` (lewat proxy frontend). Pasang di uptime monitor
+  (Uptime Kuma, Better Stack, dll.) dengan interval 1 menit.
+- **Log terpusat**: backend menulis log JSON (pino) ke stdout. Kumpulkan dengan driver logging
+  Docker (mis. Loki/Promtail, Grafana Alloy, Fluent Bit, CloudWatch) atau minimal batasi ukuran:
+
+  ```yaml
+  # docker-compose.override.yml (produksi)
+  services:
+    backend:
+      logging: { driver: json-file, options: { max-size: '20m', max-file: '5' } }
+    frontend:
+      logging: { driver: json-file, options: { max-size: '20m', max-file: '5' } }
+  ```
+
+- Pantau juga menu **Log Scan** (lencana "Perlu perhatian") & **Audit Log** di aplikasi.
 
 ---
 

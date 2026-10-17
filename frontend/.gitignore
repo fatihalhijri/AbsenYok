@@ -45,3 +45,11 @@ next-env.d.ts
 /public/zxing/
 
 certificates
+# service worker hasil build (scripts/build-sw.mjs)
+/public/sw.js
+/public/sw.js.map
+
+# playwright
+/test-results/
+/playwright-report/
+/e2e/.data/

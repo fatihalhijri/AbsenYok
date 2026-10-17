@@ -81,7 +81,7 @@ export function EmployeeHome() {
             className="min-h-11 text-muted-foreground"
             onClick={refreshAll}
             disabled={refreshing}
-            aria-label="Muat ulang data absensi"
+            aria-label="Perbarui data absensi"
           >
             <RefreshCwIcon className={cn(refreshing && 'animate-spin')} aria-hidden="true" />
             Perbarui

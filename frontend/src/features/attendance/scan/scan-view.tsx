@@ -9,7 +9,12 @@ import { useCallback, useState, useSyncExternalStore } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOnline } from '@/hooks/use-online';
 import { useScanAttendance } from '../hooks';
-import { type CheckState, PermissionChecklist } from './permission-checklist';
+import {
+  type CheckState,
+  PermissionChecklist,
+  PermissionGuide,
+  PermissionNotes,
+} from './permission-checklist';
 import type { CameraState } from './qr-scanner-view';
 import { isKioskQr, rejectMessage, type ScanErrorAction } from './scan-errors';
 import { ScanResultSheet } from './scan-result-sheet';
@@ -76,6 +81,12 @@ export function ScanView() {
 
   const locationState: CheckState =
     location.status === 'ready' ? 'ok' : location.status === 'error' ? 'error' : 'pending';
+  const permissionLocation = {
+    state: locationState,
+    accuracy: location.position?.accuracy,
+    message: location.error?.message,
+  };
+  const denied = camera.denied || location.error?.code === 'PERMISSION_DENIED';
 
   return (
     <div className="space-y-4">
@@ -104,16 +115,7 @@ export function ScanView() {
         />
       ) : (
         <>
-          <PermissionChecklist
-            camera={camera}
-            location={{
-              state: locationState,
-              accuracy: location.position?.accuracy,
-              message: location.error?.message,
-            }}
-            denied={camera.denied || location.error?.code === 'PERMISSION_DENIED'}
-            onRetry={retry}
-          />
+          <PermissionChecklist camera={camera} location={permissionLocation} />
           <div className="relative">
             <QrScannerView
               key={scannerKey}
@@ -135,6 +137,10 @@ export function ScanView() {
               </div>
             ) : null}
           </div>
+          <PermissionNotes camera={camera} location={permissionLocation} />
+          {/* Di bawah pemindai: kamera gagal → pemindai disembunyikan & panduan naik ke posisinya;
+              hanya lokasi ditolak → pemindai tetap di tempat (tanpa layout shift). */}
+          {denied ? <PermissionGuide onRetry={retry} /> : null}
         </>
       )}
 

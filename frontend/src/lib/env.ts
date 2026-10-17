@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+// Zod v4 menguji `new Function` untuk mode JIT; CSP (tanpa 'unsafe-eval') memblokirnya dan
+// mencatat pelanggaran di konsol. Mode jitless dipasang sebelum skema apa pun di-parse: modul ini
+// dievaluasi paling awal (layout di server; api-client → providers di browser).
+z.config({ jitless: true });
+
 const isValidTimeZone = (value: string) => {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: value });

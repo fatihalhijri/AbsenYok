@@ -20,18 +20,10 @@ export const MAX_ACCURACY_METERS = 100;
 interface PermissionChecklistProps {
   camera: { state: CheckState; message?: string };
   location: { state: CheckState; accuracy?: number; message?: string };
-  /** Izin ditolak (bukan gangguan sementara) → tampilkan panduan mengaktifkan izin. */
-  denied: boolean;
-  onRetry: () => void;
 }
 
-/** Status izin Kamera & Lokasi di atas pemindai + panduan bila izin ditolak. */
-export function PermissionChecklist({
-  camera,
-  location,
-  denied,
-  onRetry,
-}: PermissionChecklistProps) {
+/** Status izin Kamera & Lokasi di atas pemindai (tinggi tetap — tidak menggeser pemindai). */
+export function PermissionChecklist({ camera, location }: PermissionChecklistProps) {
   const accuracy = location.accuracy;
   const accuracyLow = accuracy !== undefined && accuracy > MAX_ACCURACY_METERS;
 
@@ -60,56 +52,6 @@ export function PermissionChecklist({
           detailClassName={accuracyLow ? 'text-destructive font-semibold' : undefined}
         />
       </ul>
-
-      {camera.state === 'error' && camera.message ? (
-        <p className="text-sm text-destructive" role="alert">
-          {camera.message}
-        </p>
-      ) : null}
-      {location.state === 'error' && location.message ? (
-        <p className="text-sm text-destructive" role="alert">
-          {location.message}
-        </p>
-      ) : null}
-      {location.state === 'ok' && accuracyLow ? (
-        <p className="text-sm text-destructive">
-          Sinyal GPS lemah (maks {MAX_ACCURACY_METERS} m). Pindah ke dekat jendela/area terbuka.
-        </p>
-      ) : null}
-
-      {denied ? (
-        <section
-          aria-label="Cara mengaktifkan izin"
-          className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
-        >
-          <h2 className="font-semibold">Aktifkan izin kamera & lokasi</h2>
-          <div className="space-y-1">
-            <p className="font-medium">Android (Chrome)</p>
-            <ol className="list-decimal space-y-0.5 pl-5 text-muted-foreground">
-              <li>Ketuk ikon pengaturan situs (di kiri alamat web).</li>
-              <li>
-                Pilih &ldquo;Izin&rdquo;, lalu ubah Kamera & Lokasi menjadi &ldquo;Izinkan&rdquo;.
-              </li>
-              <li>Pastikan Lokasi/GPS HP menyala, lalu ketuk &ldquo;Coba lagi&rdquo;.</li>
-            </ol>
-          </div>
-          <div className="space-y-1">
-            <p className="font-medium">iPhone (Safari)</p>
-            <ol className="list-decimal space-y-0.5 pl-5 text-muted-foreground">
-              <li>Ketuk ikon &ldquo;aA&rdquo; di bilah alamat → Pengaturan Situs Web.</li>
-              <li>Ubah Kamera & Lokasi menjadi &ldquo;Izinkan&rdquo;.</li>
-              <li>
-                Bila tetap gagal: Pengaturan → Privasi & Keamanan → Layanan Lokasi → Safari →
-                &ldquo;Saat Digunakan&rdquo;.
-              </li>
-            </ol>
-          </div>
-          <Button variant="outline" className="min-h-11 w-full" onClick={onRetry}>
-            <RotateCwIcon aria-hidden="true" />
-            Coba lagi
-          </Button>
-        </section>
-      ) : null}
     </div>
   );
 }
@@ -154,5 +96,73 @@ function Item({
       </span>
       <StatusIcon className={cn('size-5 shrink-0', status.className)} aria-hidden="true" />
     </li>
+  );
+}
+
+/**
+ * Panduan mengaktifkan izin (izin ditolak, bukan gangguan sementara). Dirender di bawah pemindai
+ * agar kemunculannya tidak menggeser kotak kamera (CLS).
+ */
+export function PermissionGuide({ onRetry }: { onRetry: () => void }) {
+  return (
+    <section
+      aria-label="Cara mengaktifkan izin"
+      className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
+    >
+      <h2 className="font-semibold">Aktifkan izin kamera & lokasi</h2>
+      <div className="space-y-1">
+        <p className="font-medium">Android (Chrome)</p>
+        <ol className="list-decimal space-y-0.5 pl-5 text-muted-foreground">
+          <li>Ketuk ikon pengaturan situs (di kiri alamat web).</li>
+          <li>
+            Pilih &ldquo;Izin&rdquo;, lalu ubah Kamera & Lokasi menjadi &ldquo;Izinkan&rdquo;.
+          </li>
+          <li>Pastikan Lokasi/GPS HP menyala, lalu ketuk &ldquo;Coba lagi&rdquo;.</li>
+        </ol>
+      </div>
+      <div className="space-y-1">
+        <p className="font-medium">iPhone (Safari)</p>
+        <ol className="list-decimal space-y-0.5 pl-5 text-muted-foreground">
+          <li>Ketuk ikon &ldquo;aA&rdquo; di bilah alamat → Pengaturan Situs Web.</li>
+          <li>Ubah Kamera & Lokasi menjadi &ldquo;Izinkan&rdquo;.</li>
+          <li>
+            Bila tetap gagal: Pengaturan → Privasi & Keamanan → Layanan Lokasi → Safari →
+            &ldquo;Saat Digunakan&rdquo;.
+          </li>
+        </ol>
+      </div>
+      <Button variant="outline" className="min-h-11 w-full" onClick={onRetry}>
+        <RotateCwIcon aria-hidden="true" />
+        Coba lagi
+      </Button>
+    </section>
+  );
+}
+
+/**
+ * Pesan rinci kamera/lokasi (gagal, GPS lemah). Dirender DI BAWAH pemindai agar kemunculannya
+ * tidak mendorong kotak kamera ke bawah (layout shift).
+ */
+export function PermissionNotes({ camera, location }: PermissionChecklistProps) {
+  const accuracy = location.accuracy;
+  const accuracyLow = accuracy !== undefined && accuracy > MAX_ACCURACY_METERS;
+  return (
+    <div className="space-y-1 empty:hidden">
+      {camera.state === 'error' && camera.message ? (
+        <p className="text-sm text-destructive" role="alert">
+          {camera.message}
+        </p>
+      ) : null}
+      {location.state === 'error' && location.message ? (
+        <p className="text-sm text-destructive" role="alert">
+          {location.message}
+        </p>
+      ) : null}
+      {location.state === 'ok' && accuracyLow ? (
+        <p className="text-sm text-destructive">
+          Sinyal GPS lemah (maks {MAX_ACCURACY_METERS} m). Pindah ke dekat jendela/area terbuka.
+        </p>
+      ) : null}
+    </div>
   );
 }

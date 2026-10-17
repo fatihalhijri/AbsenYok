@@ -20,7 +20,8 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { createDataTableColumnHelper, DataTable } from '@/components/shared/data-table';
 import { EmptyState } from '@/components/shared/empty-state';
 import { OptionSelect } from '@/components/shared/option-select';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarPhoto } from '@/components/shared/avatar-photo';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -122,7 +123,7 @@ export function EmployeesView() {
                 className="flex min-w-48 items-center gap-3 rounded-md outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <Avatar className="size-9">
-                  {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
+                  {user.avatarUrl ? <AvatarPhoto src={user.avatarUrl} size={36} /> : null}
                   <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
                     {initialsOf(user.name) || <UserIcon className="size-4" aria-hidden="true" />}
                   </AvatarFallback>

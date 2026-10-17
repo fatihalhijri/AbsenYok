@@ -6,6 +6,11 @@ node_modules
 package-lock.json
 next-env.d.ts
 src/types/api.d.ts
+public/sw.js
+public/sw.js.map
+playwright-report
+test-results
+e2e/.data
 
 # Dokumen spesifikasi proyek — jangan diformat ulang
 PROMPT.md

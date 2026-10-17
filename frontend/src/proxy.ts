@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
-
-/** Cookie penanda sesi non-rahasia dari backend (BE-03). `ay_rt` ber-path /api/v1/auth. */
-const SESSION_COOKIE = 'ay_session';
+// Cookie penanda sesi non-rahasia dari backend (BE-03). `ay_rt` ber-path /api/v1/auth.
+import { SESSION_COOKIE } from '@/features/auth/routing';
 
 /**
  * Redirect cepat ke login bila area terproteksi dibuka tanpa sesi. Hanya untuk UX — otorisasi

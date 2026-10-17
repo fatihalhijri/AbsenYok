@@ -1,13 +1,26 @@
 import type { Metadata } from 'next';
+import dynamic from 'next/dynamic';
 import { PageHeader } from '@/components/shared/page-header';
-import { AttendanceTrend } from '@/features/dashboard/components/attendance-trend';
+import { RenderWhenVisible } from '@/components/shared/render-when-visible';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   LateRankingCard,
   PendingLeavesCard,
   RecentActivityCard,
 } from '@/features/dashboard/components/dashboard-widgets';
 import { SummaryCards } from '@/features/dashboard/components/summary-cards';
-import { TodayComposition } from '@/features/dashboard/components/today-composition';
+
+// Grafik (recharts ±330 KB) dipisah ke chunk sendiri dan baru dipasang saat mendekati viewport
+// (di HP letaknya di bawah lipatan) → kartu ringkasan tampil & interaktif lebih dulu.
+const chartSkeleton = () => <Skeleton className="h-[26rem] w-full rounded-xl" />;
+const AttendanceTrend = dynamic(
+  () => import('@/features/dashboard/components/attendance-trend').then((m) => m.AttendanceTrend),
+  { loading: chartSkeleton },
+);
+const TodayComposition = dynamic(
+  () => import('@/features/dashboard/components/today-composition').then((m) => m.TodayComposition),
+  { loading: chartSkeleton },
+);
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
@@ -19,9 +32,13 @@ export default function AdminDashboardPage() {
       <SummaryCards />
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2">
-          <AttendanceTrend />
+          <RenderWhenVisible fallback={chartSkeleton()}>
+            <AttendanceTrend />
+          </RenderWhenVisible>
         </div>
-        <TodayComposition />
+        <RenderWhenVisible fallback={chartSkeleton()}>
+          <TodayComposition />
+        </RenderWhenVisible>
       </div>
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <LateRankingCard />

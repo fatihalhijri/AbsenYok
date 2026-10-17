@@ -3,15 +3,33 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
+import { attendanceApi, attendanceKeys } from '@/features/attendance/api';
+import { todayString } from '@/lib/date';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from './api';
 import type { ChangePasswordInput, LoginInput } from './schemas';
 
 export function useLogin() {
   const setSession = useAuthStore((state) => state.setSession);
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: LoginInput) => authApi.login(input),
-    onSuccess: ({ accessToken, user }) => setSession({ accessToken, user }),
+    onSuccess: ({ accessToken, user }) => {
+      setSession({ accessToken, user });
+      // Karyawan langsung ke beranda: mulai ambil datanya paralel dengan navigasi (tanpa menunggu
+      // halaman beranda dimuat). Kegagalan diabaikan — beranda mengambil ulang sendiri.
+      if (user.role === 'EMPLOYEE') {
+        void queryClient.prefetchQuery({
+          queryKey: attendanceKeys.today(),
+          queryFn: attendanceApi.myToday,
+        });
+        const month = todayString().slice(0, 7);
+        void queryClient.prefetchQuery({
+          queryKey: attendanceKeys.month(month),
+          queryFn: () => attendanceApi.myMonth(month),
+        });
+      }
+    },
   });
 }
 

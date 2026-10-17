@@ -1,0 +1,31 @@
+# Dibangun ulang di dalam image
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+next-env.d.ts
+public/zxing
+
+# Rahasia & env lokal — nilai build diberikan lewat build arg
+.env
+.env.*
+!.env.example
+certificates
+*.pem
+
+# Tidak dibutuhkan untuk build produksi
+e2e
+playwright.config.ts
+test-results
+playwright-report
+prompts
+*.md
+.git
+.gitignore
+.prettierrc
+.prettierignore
+Dockerfile
+.dockerignore
+*.log
+public/sw.js

@@ -3,7 +3,8 @@
 import { LogInIcon, LogOutIcon, UserIcon, UsersIcon } from 'lucide-react';
 import { initialsOf } from '@/components/layout/user-menu';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarPhoto } from '@/components/shared/avatar-photo';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
@@ -62,7 +63,7 @@ function ScanRow({ scan, highlighted }: { scan: RecentScan; highlighted: boolean
       )}
     >
       <Avatar className="size-12 shrink-0">
-        {scan.avatarUrl ? <AvatarImage src={scan.avatarUrl} alt="" /> : null}
+        {scan.avatarUrl ? <AvatarPhoto src={scan.avatarUrl} size={48} /> : null}
         <AvatarFallback className="bg-primary/15 font-semibold text-primary">
           {initialsOf(scan.name) || <UserIcon className="size-5" aria-hidden="true" />}
         </AvatarFallback>

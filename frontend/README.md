@@ -32,12 +32,16 @@ dengan pesan jelas.
 | --------------------------------- | --------------------------------------------------------------------- |
 | `npm run dev`                     | Development (Turbopack). Service worker **tidak** aktif               |
 | `npm run dev:https`               | Development via HTTPS (kamera HP butuh secure context)                |
-| `npm run build` / `npm start`     | Build & jalankan produksi (service worker aktif)                      |
+| `npm run build`                   | Build produksi (`output: standalone`) + service worker `public/sw.js` |
+| `npm start`                       | Jalankan server standalone hasil build (sama dengan image Docker)     |
 | `npm run lint` / `lint:fix`       | ESLint (`eslint-config-next` + Prettier)                              |
 | `npm run typecheck`               | `next typegen` + `tsc --noEmit`                                       |
 | `npm run format` / `format:check` | Prettier (+ urutan class Tailwind)                                    |
 | `npm run gen:api`                 | Generate `src/types/api.d.ts` dari Swagger backend (backend harus on) |
 | `npm run gen:icons`               | Generate ikon PWA & favicon dari SVG (`scripts/generate-icons.mjs`)   |
+| `npm test` / `test:watch`         | Unit & komponen (Vitest + Testing Library + MSW)                      |
+| `npm run test:e2e`                | E2E Playwright (lihat bagian Testing); laporan: `test:e2e:report`     |
+| `npm run analyze`                 | Analisis bundle Turbopack (`next experimental-analyze`, UI web)       |
 
 `dev:https` memakai sertifikat lokal yang dibuat Next.js (mkcert); saat pertama dijalankan
 Windows dapat meminta izin memasang CA lokal. Untuk menguji dari HP di jaringan yang sama, buka
@@ -52,9 +56,11 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
 
 ## PWA (Serwist, mode Turbopack)
 
-- Service worker: `src/app/sw.ts`, di-bundle esbuild dan disajikan route
-  `src/app/serwist/[path]/route.ts` di `/serwist/sw.js` (header `Service-Worker-Allowed: /`).
-  Didaftarkan oleh `SerwistProvider` di `src/app/providers.tsx`, nonaktif saat development.
+- Service worker: `src/app/sw.ts`, di-bundle esbuild oleh `scripts/build-sw.mjs` (`postbuild`)
+  menjadi `public/sw.js` beserta daftar precache, lalu didaftarkan `SerwistProvider` di
+  `src/app/providers.tsx` (nonaktif saat development). Route bawaan `@serwist/turbopack`
+  (`/serwist/[path]`) tidak dipakai: dengan `cacheComponents` route itu tidak di-prerender dan
+  mem-bundle `sw.ts` saat request — gagal (500) di server standalone/Docker tanpa source.
 - Strategi cache (aturan pertama yang cocok dipakai):
 
   | Permintaan                                    | Strategi                         |
@@ -70,11 +76,106 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
   Ikon "AY" placeholder di `public/icons/` (192, 512, maskable, apple-touch-icon) dibuat oleh
   `npm run gen:icons`; warna merek di `src/lib/brand.ts`.
 - Lighthouse 12+ tidak lagi punya kategori "PWA". Cek installable lewat DevTools → Application →
-  Manifest (bagian _Installability_) atau ikon Install di address bar setelah `npm start`.
+  Manifest (bagian _Installability_) atau ikon Install di address bar setelah `npm start`
+  (diverifikasi FE-10 lewat CDP `Page.getInstallabilityErrors`: tanpa error).
 - Menguji offline: DevTools → Application → Service workers → centang **Offline** (mengatur
   halaman sekaligus service worker), lalu buka halaman yang belum pernah dikunjungi.
 - Setelah berpindah dari `npm start` ke `npm run dev` di port yang sama, service worker lama
   masih terpasang di browser: _Unregister_ lewat DevTools bila perubahan tidak muncul.
+
+## Struktur folder
+
+```
+frontend/
+├── e2e/                    ← Playwright: global-setup (data uji via API), spesifikasi, helper
+├── public/                 ← ikon PWA, zxing/ (WASM, disalin prebuild), sw.js (hasil postbuild)
+├── scripts/                ← copy-zxing-wasm, build-sw, start-standalone, generate-icons
+├── src/
+│   ├── app/                ← App Router: (auth)/login, (employee)/app/*, (admin)/admin/*,
+│   │                         kiosk/[kioskId], offline, error.tsx, not-found.tsx, sw.ts
+│   ├── components/         ← ui/ (shadcn), layout/ (shell, nav), shared/ (DataTable, dll.)
+│   ├── features/<fitur>/   ← api.ts (query key + fetcher), hooks, schemas, components/, test
+│   ├── hooks/ · lib/       ← util lintas fitur (api-client, date, env, geolocation, …)
+│   ├── stores/             ← Zustand (auth, preferensi UI)
+│   ├── types/              ← api.d.ts (openapi-typescript) + alias
+│   └── proxy.ts            ← redirect awal ke /login bila tanpa penanda sesi
+└── Dockerfile · .dockerignore · playwright.config.ts · next.config.ts
+```
+
+## Uji kamera & GPS di HP
+
+Kamera dan Geolocation hanya jalan di _secure context_ (HTTPS atau `localhost`).
+
+1. **LAN + HTTPS lokal**: `npm run dev:https`, lalu buka `https://<IP-laptop>:3000` di HP (satu
+   Wi-Fi). Terima peringatan sertifikat (CA mkcert lokal belum dipercaya HP). Tambahkan IP laptop
+   ke `allowedDevOrigins` di `next.config.ts` bila Next.js memblokir aset dev dari origin itu.
+2. **Tunnel HTTPS publik** (sertifikat valid, cocok untuk iPhone): jalankan `npm run build`
+   lalu `npm start` (atau `npm run dev`), kemudian mis. `cloudflared tunnel --url
+http://localhost:3000` atau `ngrok http 3000`, dan buka URL `https://…` yang diberikan. Backend
+   tetap diakses lewat proxy `/api` frontend, jadi cukup satu tunnel.
+3. Pastikan izin Kamera & Lokasi untuk situs itu "Izinkan" dan GPS HP menyala. Device binding
+   mengikat akun ke browser pertama yang dipakai scan — reset lewat admin bila berganti browser.
+
+## Testing
+
+- **Unit & komponen**: `npm test` (Vitest; `jsdom` per berkas lewat komentar
+  `// @vitest-environment jsdom`, MSW untuk api-client). Mencakup api-client (refresh tunggal
+  untuk request paralel & redirect saat refresh gagal), kartu status beranda, `StatusBadge`,
+  `ScanResultSheet` (sukses & tiap kode error), util tanggal, hari kerja, dan logika fitur admin.
+- **E2E (Playwright)** terhadap frontend + backend yang **sudah berjalan** dengan DB seed.
+  Gunakan database uji — global setup membuat shift, karyawan & pengajuan baru setiap run.
+  Langkah (dari folder `backend`, lalu `frontend`):
+
+  ```bash
+  # backend dengan DB uji (nama DB wajib berakhiran _test)
+  npx prisma migrate reset --force && npm run seed && npm run build
+  PORT=4100 DATABASE_URL="mysql://…/absenyok_test" node dist/main
+
+  # frontend produksi yang mem-proxy ke backend uji
+  BACKEND_INTERNAL_URL=http://localhost:4100 npm run build
+  PORT=3100 npm start
+
+  # E2E (Chrome terpasang; atau `npx playwright install chromium` sekali)
+  E2E_BASE_URL=http://127.0.0.1:3100 E2E_API_URL=http://127.0.0.1:4100/api/v1 E2E_CHANNEL=chrome npm run test:e2e
+  ```
+
+  Skenario: karyawan login → beranda → scan QR kiosk (kamera tiruan: canvas berisi QR token kiosk
+  asli disuntik lewat `addInitScript`, geolocation di-grant di context) → absen masuk sukses;
+  admin menyetujui pengajuan → status berubah; admin export rekap → file Excel & PDF terunduh
+  dengan nama dari server. Bisa juga dijalankan terhadap stack Docker
+  (`E2E_BASE_URL=http://localhost:3000`, `E2E_API_URL=http://localhost:4000/api/v1`).
+
+## Optimasi & keamanan (FE-10)
+
+- **Lighthouse mobile** (build produksi, simulasi 4G + CPU 4×): `/app` 96, `/app/scan` 96,
+  `/login` 86 (LCP teramati 0,3 dtk; simulasi Lantern 3,3 dtk karena memperhitungkan seluruh JS
+  framework), `/admin` 89 di mobile / 100 di desktop. Accessibility, Best Practices & SEO 100.
+- Komponen berat via `next/dynamic`: pemindai QR (ZXing), recharts (dashboard & laporan — grafik
+  dashboard baru dipasang saat mendekati viewport), Leaflet; `qrcode.react` hanya di halaman QR.
+  Library pemindai hanya ada di `/app/scan` & `/admin/scan-personal` (diverifikasi per rute).
+- Halaman login di-prerender utuh (form ada di HTML statis); `?next=` dibaca saat dibutuhkan.
+  Karyawan: data beranda di-prefetch tepat setelah login.
+- Avatar lewat `next/image` (`getImageProps` + fallback inisial Radix), pola lokal
+  `/uploads/avatars/**`.
+- Error boundary per segmen (`error.tsx` root/app/admin/kiosk — kiosk mencoba pulih otomatis),
+  `global-error.tsx`, dan `not-found.tsx`.
+- **Header keamanan** (`next.config.ts`): CSP (`script-src 'self' 'unsafe-inline'
+'wasm-unsafe-eval'` — nonce akan memaksa render dinamis & mematikan prerender Cache Components;
+  tile OSM, `blob:`/`data:` untuk QR & lampiran), `Permissions-Policy` (kamera, lokasi, wake lock,
+  fullscreen hanya `self`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, COOP, dan HSTS
+  (produksi). Zod dijalankan mode `jitless` agar tidak memicu pelanggaran CSP `eval`.
+- Tidak ada HTML mentah dari server: satu-satunya `dangerouslySetInnerHTML` adalah CSS variabel
+  warna grafik dari konfigurasi statis (`components/ui/chart.tsx`).
+- Bootstrap sesi melewati `/auth/refresh` bila penanda `ay_session` tidak ada (belum login) —
+  tanpa request sia-sia & tanpa 401 di konsol.
+
+## Docker
+
+`Dockerfile` multi-stage (deps → build → runner `node:22-alpine`, user `node`, hanya
+`.next/standalone` + `.next/static` + `public`, image ±350 MB, healthcheck `/login`). Build arg
+`BACKEND_INTERNAL_URL` (default `http://backend:4000`) & `NEXT_PUBLIC_*`. Jalankan seluruh
+aplikasi dari root repo: `docker compose --profile app up -d --build` → `http://localhost:3000`
+(panduan produksi di [README root](../README.md#deploy)).
 
 ## Design system & layout (FE-02)
 

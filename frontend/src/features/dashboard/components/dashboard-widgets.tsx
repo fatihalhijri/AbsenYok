@@ -14,7 +14,8 @@ import { initialsOf } from '@/components/layout/user-menu';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { StatusBadge } from '@/components/shared/status-badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarPhoto } from '@/components/shared/avatar-photo';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -61,7 +62,7 @@ function PersonAvatar({
 }) {
   return (
     <Avatar className={cn('size-8', className)}>
-      {avatarUrl ? <AvatarImage src={avatarUrl} alt="" /> : null}
+      {avatarUrl ? <AvatarPhoto src={avatarUrl} size={32} /> : null}
       <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
         {initialsOf(name) || <UserIcon className="size-4" aria-hidden="true" />}
       </AvatarFallback>

@@ -6,7 +6,9 @@ import { REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH, SESSION_COOKIE_NAME } from '.
 /**
  * Cookie sesi:
  * - `ay_rt`: refresh token (httpOnly, path /api/v1/auth)
- * - `ay_session=1`: penanda non-rahasia untuk redirect awal middleware Next.js (path /)
+ * - `ay_session=1`: penanda non-rahasia (path /) untuk redirect awal middleware Next.js dan agar
+ *   frontend tidak memanggil `/auth/refresh` bila belum pernah login — sengaja TIDAK httpOnly
+ *   (isinya hanya "1"; refresh token tetap di `ay_rt` yang httpOnly).
  */
 @Injectable()
 export class AuthCookieService {
@@ -19,12 +21,21 @@ export class AuthCookieService {
       path: REFRESH_COOKIE_PATH,
       maxAge,
     });
-    response.cookie(SESSION_COOKIE_NAME, '1', { ...this.baseOptions(), path: '/', maxAge });
+    response.cookie(SESSION_COOKIE_NAME, '1', {
+      ...this.baseOptions(),
+      httpOnly: false,
+      path: '/',
+      maxAge,
+    });
   }
 
   clearSessionCookies(response: Response): void {
     response.clearCookie(REFRESH_COOKIE_NAME, { ...this.baseOptions(), path: REFRESH_COOKIE_PATH });
-    response.clearCookie(SESSION_COOKIE_NAME, { ...this.baseOptions(), path: '/' });
+    response.clearCookie(SESSION_COOKIE_NAME, {
+      ...this.baseOptions(),
+      httpOnly: false,
+      path: '/',
+    });
   }
 
   private baseOptions(): CookieOptions {

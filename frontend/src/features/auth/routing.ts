@@ -33,3 +33,10 @@ export function resolvePostLoginPath(next: string | null, role: Role): string {
 /** URL login dengan `next` (path saat ini). */
 export const loginPathWithNext = (next: string | null) =>
   next ? `/login?next=${encodeURIComponent(next)}` : '/login';
+
+/** Nama cookie penanda sesi non-rahasia dari backend (`ay_session=1`, bukan httpOnly). */
+export const SESSION_COOKIE = 'ay_session';
+
+/** Ada penanda sesi di `document.cookie`? (Refresh token sendiri httpOnly & tak terbaca.) */
+export const hasSessionCookie = (cookie: string) =>
+  cookie.split(';').some((part) => part.trim().startsWith(`${SESSION_COOKIE}=`));

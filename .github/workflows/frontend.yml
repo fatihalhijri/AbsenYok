@@ -1,0 +1,70 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-build:
+    name: Lint, typecheck, test & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      # Build tidak menghubungi backend; nilai ini hanya tujuan rewrite /api yang ditanam saat build.
+      BACKEND_INTERNAL_URL: http://localhost:4000
+      # Disamakan dengan npm yang membuat package-lock.json.
+      NPM_VERSION: 11.6.2
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: |
+          npm install -g "npm@${NPM_VERSION}" --no-audit --no-fund
+          npm ci --no-audit --no-fund
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit & komponen test
+        run: npm test
+
+      # `postbuild` juga membangun service worker (public/sw.js).
+      - name: Build
+        run: npm run build
+
+      - name: Audit dependensi produksi (high/critical)
+        run: npm audit --omit=dev --audit-level=high
