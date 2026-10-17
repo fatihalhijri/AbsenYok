@@ -1444,7 +1444,7 @@ export interface components {
              * @default EMPLOYEE
              * @enum {string}
              */
-            role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+            role?: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
             /** Format: uuid */
             departmentId?: string | null;
             /** Format: uuid */
@@ -1474,7 +1474,7 @@ export interface components {
              * @default EMPLOYEE
              * @enum {string}
              */
-            role: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
+            role?: "SUPER_ADMIN" | "ADMIN" | "EMPLOYEE";
             /** Format: uuid */
             departmentId?: string | null;
             /** Format: uuid */
@@ -1593,24 +1593,24 @@ export interface components {
              * @default 15
              * @example 15
              */
-            lateToleranceMinutes: number;
+            lateToleranceMinutes?: number;
             /**
              * @description Absen masuk dibuka sekian menit sebelum jam masuk
              * @default 60
              * @example 60
              */
-            checkInOpenMinutes: number;
+            checkInOpenMinutes?: number;
             /**
              * @description ISO weekday dipisah koma: 1 = Senin … 7 = Minggu (unik)
              * @default 1,2,3,4,5
              * @example 1,2,3,4,5
              */
-            workDays: string;
+            workDays?: string;
             /**
              * @default true
              * @example true
              */
-            isActive: boolean;
+            isActive?: boolean;
         };
         UpdateShiftDto: {
             /** @example Reguler */
@@ -1626,24 +1626,24 @@ export interface components {
              * @default 15
              * @example 15
              */
-            lateToleranceMinutes: number;
+            lateToleranceMinutes?: number;
             /**
              * @description Absen masuk dibuka sekian menit sebelum jam masuk
              * @default 60
              * @example 60
              */
-            checkInOpenMinutes: number;
+            checkInOpenMinutes?: number;
             /**
              * @description ISO weekday dipisah koma: 1 = Senin … 7 = Minggu (unik)
              * @default 1,2,3,4,5
              * @example 1,2,3,4,5
              */
-            workDays: string;
+            workDays?: string;
             /**
              * @default true
              * @example true
              */
-            isActive: boolean;
+            isActive?: boolean;
         };
         LocationEntity: {
             /**
@@ -1688,7 +1688,7 @@ export interface components {
             /** @example Kantor Pusat */
             name: string;
             /** @example Jl. Jenderal Sudirman Kav. 52-53, Jakarta Selatan */
-            address?: Record<string, never> | null;
+            address?: string | null;
             /** @example -6.2 */
             latitude: number;
             /** @example 106.8166667 */
@@ -1697,18 +1697,18 @@ export interface components {
              * @default 100
              * @example 100
              */
-            radiusMeters: number;
+            radiusMeters?: number;
             /**
              * @default true
              * @example true
              */
-            isActive: boolean;
+            isActive?: boolean;
         };
         UpdateLocationDto: {
             /** @example Kantor Pusat */
             name?: string;
             /** @example Jl. Jenderal Sudirman Kav. 52-53, Jakarta Selatan */
-            address?: Record<string, never> | null;
+            address?: string | null;
             /** @example -6.2 */
             latitude?: number;
             /** @example 106.8166667 */
@@ -1717,12 +1717,12 @@ export interface components {
              * @default 100
              * @example 100
              */
-            radiusMeters: number;
+            radiusMeters?: number;
             /**
              * @default true
              * @example true
              */
-            isActive: boolean;
+            isActive?: boolean;
         };
         HolidayEntity: {
             /**
@@ -2348,16 +2348,16 @@ export interface components {
              * @description null = hapus jam masuk
              * @example 2026-10-19T07:55:00+07:00
              */
-            checkInAt?: Record<string, never> | null;
+            checkInAt?: string | null;
             /** @example 2026-10-19T17:00:00+07:00 */
-            checkOutAt?: Record<string, never> | null;
+            checkOutAt?: string | null;
             /**
              * @description Bila tidak dikirim & jam masuk berubah, PRESENT/LATE dihitung ulang
              * @enum {string}
              */
             status?: "PRESENT" | "LATE" | "ABSENT" | "SICK" | "PERMIT" | "LEAVE";
             /** @example Terlambat karena banjir */
-            note?: Record<string, never> | null;
+            note?: string | null;
             /** @example Koreksi jam masuk sesuai rekaman CCTV lobi */
             reason: string;
         };
@@ -2464,6 +2464,10 @@ export interface components {
             /** @example Bertepatan dengan audit tahunan, mohon ajukan di minggu berikutnya */
             note: string;
         };
+        DashboardHolidayEntity: {
+            /** @example Hari Raya Natal */
+            name: string;
+        };
         DashboardSummaryEntity: {
             /** @example 2026-10-19 */
             date: string;
@@ -2487,11 +2491,8 @@ export interface components {
             notYetCheckedIn: number;
             /** @example 85.8 */
             attendanceRate: number;
-            /**
-             * @description { name } bila hari libur
-             * @example null
-             */
-            holiday?: Record<string, never> | null;
+            /** @description Terisi bila hari ini libur */
+            holiday?: components["schemas"]["DashboardHolidayEntity"] | null;
         };
         TrendPointEntity: {
             /** @example 2026-10-19 */

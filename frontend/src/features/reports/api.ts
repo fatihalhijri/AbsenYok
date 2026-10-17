@@ -1,7 +1,7 @@
 import { api } from '@/lib/api-client';
 
 /** Nama file dari header `Content-Disposition: attachment; filename="..."`. */
-function filenameFrom(disposition: unknown, fallback: string): string {
+export function filenameFrom(disposition: unknown, fallback: string): string {
   if (typeof disposition !== 'string') return fallback;
   const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
   return match?.[1] ? decodeURIComponent(match[1]) : fallback;

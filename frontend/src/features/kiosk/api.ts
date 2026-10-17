@@ -1,5 +1,5 @@
 import { api } from '@/lib/api-client';
-import type { Kiosk, KioskQr, RecentScan } from '@/types';
+import type { Kiosk, KioskInput, KioskQr, RecentScan, Schemas } from '@/types';
 
 export const kioskKeys = {
   all: ['kiosks'] as const,
@@ -9,8 +9,12 @@ export const kioskKeys = {
 
 export const kioskApi = {
   /** Daftar kiosk (ADMIN/SUPER_ADMIN, berpaginasi). */
-  list: (params: { page?: number; limit?: number; search?: string } = {}) =>
-    api.page<Kiosk>('/kiosks', params),
+  list: (params: Record<string, string | number> = {}) => api.page<Kiosk>('/kiosks', params),
+  create: (input: KioskInput) => api.post<Kiosk>('/kiosks', input),
+  update: (id: string, input: Schemas['UpdateKioskDto']) =>
+    api.patch<Kiosk>(`/kiosks/${id}`, input),
+  /** Secret baru → semua QR lama (termasuk yang sedang tampil) langsung tidak berlaku. */
+  rotateSecret: (id: string) => api.post<Kiosk>(`/kiosks/${id}/rotate-secret`),
   /** Token QR berjalan; juga menandai kiosk "terlihat" (`lastSeenAt`). */
   qr: (id: string) => api.get<KioskQr>(`/kiosks/${id}/qr`),
   /** 10 scan berhasil terakhir hari ini. */

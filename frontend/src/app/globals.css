@@ -147,6 +147,11 @@
   --chart-3: oklch(0.769 0.188 70.08); /* amber-500 */
   --chart-4: oklch(0.645 0.246 16.439); /* rose-500 */
   --chart-5: oklch(0.685 0.169 237.323); /* sky-500 */
+  /* Warna status di grafik (urutan & nilai divalidasi dataviz validate_palette: CVD & kontras). */
+  --chart-present: #059669;
+  --chart-leave: #0ea5e9;
+  --chart-late: #f59e0b;
+  --chart-absent: #f43f5e;
   --sidebar: oklch(0.985 0.003 165);
   --sidebar-foreground: oklch(0.16 0.01 175);
   --sidebar-primary: oklch(0.508 0.118 165.612);
@@ -186,6 +191,10 @@
   --chart-3: oklch(0.828 0.189 84.429); /* amber-400 */
   --chart-4: oklch(0.712 0.194 13.428); /* rose-400 */
   --chart-5: oklch(0.746 0.16 232.661); /* sky-400 */
+  --chart-present: #059669;
+  --chart-leave: #0284c7;
+  --chart-late: #d97706;
+  --chart-absent: #e11d48;
   --sidebar: oklch(0.18 0.009 175);
   --sidebar-foreground: oklch(0.97 0.004 165);
   --sidebar-primary: oklch(0.696 0.17 162.48);

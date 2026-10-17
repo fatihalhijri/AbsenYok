@@ -205,6 +205,30 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
 - **"Baru saja absen"**: polling 5 dtk, entri baru masuk dari atas & disorot 6 dtk, bunyi "ding" (bisa
   dimatikan; browser baru mengizinkan suara setelah ada klik — mis. tombol layar penuh/suara).
 
+## Dashboard admin & master data (FE-08)
+
+- **Tabel**: semua daftar memakai `DataTable` dengan paginasi & sort **server-side**; state
+  (`page, limit, sortBy, sortOrder, search`, filter) disimpan di URL lewat `hooks/use-list-params.ts`
+  (bisa di-refresh/dibagikan; `sortBy` di-whitelist sesuai `*_SORT_FIELDS` backend). Halaman
+  wajib di dalam `<Suspense>`. Pengecualian: Hari Libur (endpoint per tahun, tanpa paginasi; tahun di
+  `?year=`).
+- **Mutasi**: `lib/mutation.ts` (`useToastMutation`) → toast sukses/gagal + invalidasi query; error
+  validasi backend dipetakan ke field form (`applyServerFieldErrors`). Dialog memakai
+  `hooks/use-dialog-target.ts` (target dipertahankan selama animasi tutup).
+- **Dashboard `/admin`**: StatCard (tautan ke daftar terfilter), tren 30 hari (batang bertumpuk +
+  tampilan tabel), donut status hari ini, Top 10 terlambat, aktivitas (refetch 15 dtk), pengajuan
+  menunggu — tiap widget query & skeleton sendiri. Warna status (`--chart-present/leave/late/absent`)
+  & urutannya divalidasi dengan validator palet dataviz (CVD & kontras, terang + gelap).
+- **Karyawan**: filter departemen/role/status, Sheet tambah/ubah (role sesuai hak: ADMIN hanya
+  Karyawan), reset password, reset perangkat, aktif/nonaktif, hapus (SUPER_ADMIN), **Import XLSX**
+  (template, drag & drop, tabel error per baris). Detail `/admin/employees/[id]`.
+- **Master data**: Departemen, Shift (input jam, chip Sen–Min, preview teks), Hari Libur (per tahun +
+  "Tambah banyak" `YYYY-MM-DD;Nama`), Lokasi (**Leaflet** via `next/dynamic` `ssr:false`, klik peta,
+  radius live, "lokasi saya"; penanda vektor), Kiosk (terakhir aktif relatif — merah > 5 menit, rotasi
+  secret), Pengaturan (SUPER_ADMIN; hanya key yang berubah yang dikirim).
+- **Tipe API**: `npm run gen:api` memakai `--default-non-nullable false` (field ber-default di DTO
+  update tetap opsional).
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi

@@ -19,6 +19,11 @@ export class RankingQueryDto {
   month?: string;
 }
 
+export class DashboardHolidayEntity {
+  @ApiProperty({ example: 'Hari Raya Natal' })
+  name: string;
+}
+
 export class DashboardSummaryEntity {
   @ApiProperty({ example: '2026-10-19' }) date: string;
   @ApiProperty({ example: 120, description: 'Karyawan yang dijadwalkan bekerja hari ini' })
@@ -29,8 +34,12 @@ export class DashboardSummaryEntity {
   @ApiProperty({ example: 4 }) onLeave: number;
   @ApiProperty({ example: 13 }) notYetCheckedIn: number;
   @ApiProperty({ example: 85.8 }) attendanceRate: number;
-  @ApiPropertyOptional({ example: null, nullable: true, description: '{ name } bila hari libur' })
-  holiday: { name: string } | null;
+  @ApiPropertyOptional({
+    type: () => DashboardHolidayEntity,
+    nullable: true,
+    description: 'Terisi bila hari ini libur',
+  })
+  holiday: DashboardHolidayEntity | null;
 }
 
 export class TrendPointEntity {

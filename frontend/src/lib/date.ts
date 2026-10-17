@@ -1,6 +1,7 @@
 import dayjs, { type Dayjs } from 'dayjs';
 import 'dayjs/locale/id';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { env } from '@/lib/env';
@@ -8,6 +9,7 @@ import { env } from '@/lib/env';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(customParseFormat);
+dayjs.extend(relativeTime);
 dayjs.locale('id');
 
 /** Zona waktu bisnis (sama dengan APP_TIMEZONE backend). */
@@ -85,5 +87,9 @@ export function datesInMonth(month: string): string[] {
     start.add(index, 'day').format(DATE_FORMAT),
   );
 }
+
+/** Waktu relatif berbahasa Indonesia, mis. "2 menit yang lalu". */
+export const formatRelative = (value: DateInput, now?: DateInput) =>
+  now === undefined ? dayjs(value).fromNow() : dayjs(value).from(dayjs(now));
 
 export { dayjs };

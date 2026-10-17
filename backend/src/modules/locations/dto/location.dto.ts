@@ -30,6 +30,7 @@ export class CreateLocationDto {
   name: string;
 
   @ApiPropertyOptional({
+    type: String,
     example: 'Jl. Jenderal Sudirman Kav. 52-53, Jakarta Selatan',
     nullable: true,
   })

@@ -146,6 +146,7 @@ export class ManualAttendanceDto {
 
 export class CorrectAttendanceDto {
   @ApiPropertyOptional({
+    type: String,
     example: '2026-10-19T07:55:00+07:00',
     nullable: true,
     description: 'null = hapus jam masuk',
@@ -156,7 +157,7 @@ export class CorrectAttendanceDto {
   @IsISO8601({ strict: true }, { message: `checkInAt ${DATETIME_MESSAGE}` })
   checkInAt?: string | null;
 
-  @ApiPropertyOptional({ example: '2026-10-19T17:00:00+07:00', nullable: true })
+  @ApiPropertyOptional({ type: String, example: '2026-10-19T17:00:00+07:00', nullable: true })
   @IsOptional()
   @ValidateIf(notNull)
   @Matches(DATETIME_WITH_ZONE, { message: `checkOutAt ${DATETIME_MESSAGE}` })
@@ -171,7 +172,7 @@ export class CorrectAttendanceDto {
   @IsEnum(AttendanceStatus, { message: STATUS_MESSAGE })
   status?: AttendanceStatus;
 
-  @ApiPropertyOptional({ example: 'Terlambat karena banjir', nullable: true })
+  @ApiPropertyOptional({ type: String, example: 'Terlambat karena banjir', nullable: true })
   @IsOptional()
   @ValidateIf(notNull)
   @IsString({ message: 'Catatan harus berupa teks' })

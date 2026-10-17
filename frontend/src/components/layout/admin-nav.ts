@@ -84,7 +84,6 @@ export const ADMIN_NAV: AdminNavGroup[] = [
 
 /** Label segmen URL di luar menu (untuk breadcrumb). */
 const EXTRA_SEGMENT_LABELS: Record<string, string> = {
-  _demo: 'Demo Komponen',
   new: 'Tambah',
   edit: 'Ubah',
 };

@@ -1,20 +1,33 @@
-import { LayoutDashboardIcon } from 'lucide-react';
 import type { Metadata } from 'next';
-import { EmptyState } from '@/components/shared/empty-state';
 import { PageHeader } from '@/components/shared/page-header';
+import { AttendanceTrend } from '@/features/dashboard/components/attendance-trend';
+import {
+  LateRankingCard,
+  PendingLeavesCard,
+  RecentActivityCard,
+} from '@/features/dashboard/components/dashboard-widgets';
+import { SummaryCards } from '@/features/dashboard/components/summary-cards';
+import { TodayComposition } from '@/features/dashboard/components/today-composition';
 
 export const metadata: Metadata = { title: 'Dashboard' };
 
-/** Dashboard admin — statistik & grafik dikerjakan di FE-08. */
+/** Dashboard admin — setiap widget memuat datanya sendiri (skeleton masing-masing). */
 export default function AdminDashboardPage() {
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader title="Dashboard" description="Ringkasan kehadiran hari ini." />
-      <EmptyState
-        icon={LayoutDashboardIcon}
-        title="Dashboard sedang disiapkan"
-        description="Statistik kehadiran, tren, dan aktivitas terbaru akan tampil di sini."
-      />
-    </>
+      <SummaryCards />
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
+          <AttendanceTrend />
+        </div>
+        <TodayComposition />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <LateRankingCard />
+        <RecentActivityCard />
+        <PendingLeavesCard />
+      </div>
+    </div>
   );
 }
