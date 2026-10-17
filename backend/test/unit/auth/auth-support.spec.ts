@@ -44,7 +44,8 @@ describe('AuthCookieService', () => {
     expect(response.cookie).toHaveBeenCalledWith(
       SESSION_COOKIE_NAME,
       '1',
-      expect.objectContaining({ path: '/', httpOnly: true }),
+      // Penanda non-rahasia: bisa dibaca frontend (refresh token tetap httpOnly).
+      expect.objectContaining({ path: '/', httpOnly: false }),
     );
   });
 

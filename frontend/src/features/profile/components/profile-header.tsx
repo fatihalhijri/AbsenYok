@@ -4,7 +4,8 @@ import { CameraIcon, UserIcon } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { initialsOf } from '@/components/layout/user-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarPhoto } from '@/components/shared/avatar-photo';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getErrorMessage } from '@/lib/error';
 import { AVATAR_TYPES, validateUpload } from '@/lib/upload';
 import type { UserProfile } from '@/types';
@@ -47,7 +48,9 @@ export function ProfileHeader({ user }: { user: UserProfile }) {
     <section className="flex flex-col items-center gap-3 text-center">
       <div className="relative">
         <Avatar className="size-24 text-2xl shadow-md ring-4 ring-background">
-          {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt={`Foto ${user.name}`} /> : null}
+          {user.avatarUrl ? (
+            <AvatarPhoto src={user.avatarUrl} alt={`Foto ${user.name}`} size={96} />
+          ) : null}
           <AvatarFallback className="bg-primary/10 font-semibold text-primary">
             {initialsOf(user.name) || <UserIcon className="size-8" aria-hidden="true" />}
           </AvatarFallback>

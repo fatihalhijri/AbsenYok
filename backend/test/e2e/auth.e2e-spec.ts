@@ -135,9 +135,9 @@ describe('Auth (e2e, MySQL database _test)', () => {
       expect(maxAge).toBeLessThanOrEqual(604_800);
       const session = getCookie(res.headers['set-cookie'], 'ay_session');
       expect(session?.value).toBe('1');
-      expect(session?.attributes).toEqual(
-        expect.arrayContaining(['Path=/', 'HttpOnly', 'SameSite=Lax']),
-      );
+      expect(session?.attributes).toEqual(expect.arrayContaining(['Path=/', 'SameSite=Lax']));
+      // Penanda non-rahasia → sengaja bisa dibaca JavaScript (frontend melewati refresh bila tidak ada).
+      expect(session?.attributes).not.toContain('HttpOnly');
 
       // Database hanya menyimpan hash SHA-256 refresh token.
       const stored = await prisma.refreshToken.findMany({ where: { userId: ids.employee } });

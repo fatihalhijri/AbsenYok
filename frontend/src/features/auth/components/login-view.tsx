@@ -1,7 +1,7 @@
 'use client';
 
 import { MapPinCheckIcon, QrCodeIcon, ShieldCheckIcon } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { BrandMark } from '@/components/layout/brand-mark';
 import { usePublicSettings } from '@/features/settings/hooks';
@@ -17,22 +17,29 @@ const HIGHLIGHTS = [
   { icon: ShieldCheckIcon, text: 'Satu akun terikat satu perangkat' },
 ];
 
+/**
+ * `?next=` dibaca langsung dari URL saat dibutuhkan (bukan `useSearchParams`) agar halaman login
+ * bisa di-prerender utuh: form sudah ada di HTML statis → tampil (LCP) tanpa menunggu JavaScript.
+ */
+const readNext = () => new URLSearchParams(window.location.search).get('next');
+
 export function LoginView() {
   const router = useRouter();
-  const next = useSearchParams().get('next');
   const status = useAuthStore((state) => state.status);
   const role = useAuthStore((state) => state.user?.role);
   const { companyName } = usePublicSettings();
 
   const goHome = (user: Pick<UserProfile, 'role'>) =>
-    router.replace(resolvePostLoginPath(next, user.role));
+    router.replace(resolvePostLoginPath(readNext(), user.role));
 
   // Sesi berhasil dipulihkan (cookie masih valid) → langsung ke beranda/`next`.
   useEffect(() => {
-    if (status === 'authenticated' && role) router.replace(resolvePostLoginPath(next, role));
-  }, [next, role, router, status]);
+    if (status === 'authenticated' && role) router.replace(resolvePostLoginPath(readNext(), role));
+  }, [role, router, status]);
 
-  if (status === 'idle' || status === 'loading' || status === 'authenticated') {
+  // `idle` (prerender & sebelum bootstrap) → form langsung. Splash hanya saat sesi sungguh sedang
+  // dipulihkan (ada penanda sesi) atau sudah pulih dan sedang dialihkan.
+  if (status === 'loading' || status === 'authenticated') {
     return <SplashScreen message={status === 'authenticated' ? 'Mengalihkan…' : undefined} />;
   }
 
@@ -56,7 +63,7 @@ export function LoginView() {
         />
         <div className="relative max-w-md space-y-6">
           <div className="space-y-2">
-            <p className="text-sm font-medium text-primary-foreground/80">{companyName}</p>
+            <p className="text-sm font-medium text-primary-foreground">{companyName}</p>
             <h2 className="text-4xl leading-tight font-semibold text-balance">
               Absen cukup satu scan, langsung tercatat.
             </h2>
@@ -72,7 +79,7 @@ export function LoginView() {
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-primary-foreground/70">
+        <p className="relative text-xs text-primary-foreground">
           © {companyName} · Didukung AbsenYok
         </p>
       </section>
@@ -83,7 +90,8 @@ export function LoginView() {
             <BrandMark label="app" className="lg:hidden" />
             <h1 className="pt-4 text-2xl font-semibold tracking-tight lg:pt-0">Masuk</h1>
             <p className="text-sm text-muted-foreground">
-              Gunakan email dan password akun {companyName} Anda.
+              {/* Teks tetap (bukan nama instansi dari API): blok form tidak bergeser. */}
+              Gunakan email dan password akun kantor Anda.
             </p>
           </div>
           <LoginForm onSuccess={goHome} />

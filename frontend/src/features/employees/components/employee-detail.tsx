@@ -19,7 +19,8 @@ import { initialsOf } from '@/components/layout/user-menu';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { MonthPicker } from '@/components/shared/month-picker';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarPhoto } from '@/components/shared/avatar-photo';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,7 +115,7 @@ export function EmployeeDetail() {
           {data ? (
             <>
               <Avatar className="size-20 text-xl">
-                {data.avatarUrl ? <AvatarImage src={data.avatarUrl} alt="" /> : null}
+                {data.avatarUrl ? <AvatarPhoto src={data.avatarUrl} size={80} /> : null}
                 <AvatarFallback className="bg-primary/10 font-semibold text-primary">
                   {initialsOf(data.name) || <UserIcon className="size-8" aria-hidden="true" />}
                 </AvatarFallback>

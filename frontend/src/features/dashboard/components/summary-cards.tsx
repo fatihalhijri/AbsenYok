@@ -109,7 +109,6 @@ export function SummaryCards() {
               <Link
                 href={card.href(data)}
                 className="block rounded-xl transition-shadow outline-none hover:shadow-md focus-visible:ring-3 focus-visible:ring-ring/50"
-                aria-label={`${card.label}: ${card.value(data)} — lihat daftar`}
               >
                 <StatCard
                   label={card.label}
@@ -122,6 +121,7 @@ export function SummaryCards() {
                       : `${percent(card.value(data), data.totalEmployees)} dari karyawan`
                   }
                 />
+                <span className="sr-only"> — lihat daftar</span>
               </Link>
             ) : (
               <StatCard label={card.label} value="" icon={card.icon} tone={card.tone} loading />

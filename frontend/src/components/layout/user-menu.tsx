@@ -2,7 +2,8 @@
 
 import { Loader2Icon, LogOutIcon, PaletteIcon, UserIcon } from 'lucide-react';
 import Link from 'next/link';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AvatarPhoto } from '@/components/shared/avatar-photo';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -39,13 +40,15 @@ export function UserMenu({ profileHref }: { profileHref: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-10 rounded-full" aria-label="Menu akun">
+        <Button variant="ghost" size="icon" className="size-10 rounded-full">
           <Avatar className="size-9">
-            {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
+            {user?.avatarUrl ? <AvatarPhoto src={user.avatarUrl} size={36} /> : null}
             <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
               {initialsOf(user?.name) || <UserIcon className="size-4" aria-hidden="true" />}
             </AvatarFallback>
           </Avatar>
+          {/* Nama aksesibel memuat inisial yang terlihat + keterangan (WCAG 2.5.3 Label in Name). */}
+          <span className="sr-only">Menu akun {user?.name ?? ''}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-60">

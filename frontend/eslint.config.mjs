@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     'next-env.d.ts',
     // Hasil generate `npm run gen:api`.
     'src/types/api.d.ts',
+    // Hasil build: service worker (scripts/build-sw.mjs) & laporan Playwright.
+    'public/sw.js',
+    'playwright-report/**',
+    'test-results/**',
   ]),
 ]);
 

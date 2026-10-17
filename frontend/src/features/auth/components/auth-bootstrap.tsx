@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { toApiError } from '@/lib/error';
 import { useAuthStore } from '@/stores/auth-store';
-import { loginPathWithNext } from '../routing';
+import { hasSessionCookie, loginPathWithNext } from '../routing';
 
 /**
  * Saat aplikasi dimuat: pulihkan sesi diam-diam lewat `/auth/refresh` (cookie httpOnly).
@@ -27,6 +27,12 @@ export function AuthBootstrap() {
     const { status, setStatus } = useAuthStore.getState();
     // Hanya sekali per muat halaman (StrictMode memanggil effect dua kali; refresh juga single-flight).
     if (status !== 'idle') return;
+    // Belum pernah login (tanpa penanda sesi) → tidak perlu refresh: hemat satu request & tanpa
+    // 401 di konsol. Penanda dipasang/dihapus backend bersama refresh token.
+    if (!hasSessionCookie(document.cookie)) {
+      setStatus('unauthenticated');
+      return;
+    }
     setStatus('loading');
     api.refreshSession().catch(markBootstrapFailure);
   }, []);

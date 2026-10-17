@@ -11,6 +11,7 @@ import {
   UsersIcon,
 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
@@ -41,8 +42,13 @@ import {
   sortReportRows,
 } from '../aggregate';
 import { reportKeys, reportsApi } from '../api';
-import { DepartmentRateChart } from './department-rate-chart';
 import { ExportButtons } from './export-actions';
+
+// Grafik recharts dimuat terpisah (chunk besar) setelah tabel rekap tampil.
+const DepartmentRateChart = dynamic(
+  () => import('./department-rate-chart').then((m) => m.DepartmentRateChart),
+  { loading: () => <Skeleton className="h-64 w-full rounded-xl" /> },
+);
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 

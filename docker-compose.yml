@@ -1,7 +1,8 @@
 # Jalankan database saja untuk development:
 #   docker compose up -d mysql adminer
-# Jalankan semua (setelah Dockerfile backend & frontend dibuat di prompt 10):
+# Jalankan semua (MySQL + backend + frontend → http://localhost:3000):
 #   docker compose --profile app up -d --build
+# Port 3306 sudah dipakai MySQL lokal? Ubah port host: MYSQL_PORT=3307 docker compose ...
 
 services:
   mysql:
@@ -19,7 +20,7 @@ services:
       - --collation-server=utf8mb4_unicode_ci
       - --default-time-zone=+00:00
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -45,6 +46,9 @@ services:
     env_file: ./backend/.env
     environment:
       DATABASE_URL: mysql://absenyok:absenyok_secret@mysql:3306/absenyok
+      # env_file Compose tidak membuang komentar setelah nilai kosong (`COOKIE_DOMAIN=   # …` di
+      # .env.example terbaca sebagai "# …") → tetapkan eksplisit; kosong = cookie host-only.
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
     ports:
       - "4000:4000"
     depends_on:

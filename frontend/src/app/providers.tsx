@@ -23,8 +23,9 @@ export function Providers({ children }: { children: ReactNode }) {
   // Satu QueryClient per tab (bukan module global) — aman untuk SSR/prerender.
   const [queryClient] = useState(createQueryClient);
 
+  // public/sw.js dibangun oleh scripts/build-sw.mjs (postbuild); service worker nonaktif di dev.
   return (
-    <SerwistProvider swUrl="/serwist/sw.js" disable={isDev}>
+    <SerwistProvider swUrl="/sw.js" disable={isDev}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
