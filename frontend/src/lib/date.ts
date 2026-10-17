@@ -46,6 +46,10 @@ export const formatDateTime = (value: DateInput) => inAppTz(value).format('D MMM
 export const dateToString = (date: Date) => dayjs(date).format(DATE_FORMAT);
 export const stringToDate = (date: string) => dayjs(date, DATE_FORMAT).toDate();
 
+/** Jumlah hari inklusif antara dua tanggal kalender (`2026-10-01`…`2026-10-31` → 31). */
+export const daysInclusive = (from: string, to: string) =>
+  dayjs(to, DATE_FORMAT).diff(dayjs(from, DATE_FORMAT), 'day') + 1;
+
 /** Hari ini menurut zona aplikasi (`YYYY-MM-DD`). */
 export const todayString = () => inAppTz().format(DATE_FORMAT);
 

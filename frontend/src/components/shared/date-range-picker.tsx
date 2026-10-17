@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { dateToString, formatDateShort, stringToDate } from '@/lib/date';
+import { dateToString, daysInclusive, formatDateShort, stringToDate } from '@/lib/date';
 import { cn } from '@/lib/utils';
 
 /** Rentang tanggal kalender `YYYY-MM-DD` (format query API: dateFrom/dateTo). */
@@ -24,6 +24,8 @@ interface DateRangePickerProps {
   /** Batas tanggal yang bisa dipilih (`YYYY-MM-DD`). */
   minDate?: string;
   maxDate?: string;
+  /** Panjang rentang maksimal (inklusif); rentang lebih panjang tidak diterapkan. */
+  maxDays?: number;
   /** Tampilkan tombol hapus pilihan. */
   clearable?: boolean;
   className?: string;
@@ -36,6 +38,7 @@ export function DateRangePicker({
   placeholder = 'Pilih rentang tanggal',
   minDate,
   maxDate,
+  maxDays,
   clearable = true,
   className,
   ...props
@@ -44,6 +47,7 @@ export function DateRangePicker({
   const [open, setOpen] = useState(false);
   // Pilihan sementara: rentang baru dikirim setelah tanggal akhir dipilih.
   const [draft, setDraft] = useState<DayPickerRange | undefined>();
+  const [tooLong, setTooLong] = useState(false);
 
   const selected: DayPickerRange | undefined =
     draft ?? (value ? { from: stringToDate(value.from), to: stringToDate(value.to) } : undefined);
@@ -56,6 +60,13 @@ export function DateRangePicker({
 
   const handleSelect = (range: DayPickerRange | undefined) => {
     if (range?.from && range.to && draft?.from) {
+      if (maxDays && daysInclusive(dateToString(range.from), dateToString(range.to)) > maxDays) {
+        // Tetap di popover: tanggal awal dipertahankan, pengguna memilih ulang tanggal akhir.
+        setTooLong(true);
+        setDraft({ from: draft.from, to: undefined });
+        return;
+      }
+      setTooLong(false);
       onChange({ from: dateToString(range.from), to: dateToString(range.to) });
       setDraft(undefined);
       setOpen(false);
@@ -75,7 +86,10 @@ export function DateRangePicker({
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
-          if (!next) setDraft(undefined);
+          if (!next) {
+            setDraft(undefined);
+            setTooLong(false);
+          }
         }}
       >
         <PopoverTrigger asChild>
@@ -99,8 +113,19 @@ export function DateRangePicker({
             disabled={disabled}
             className="[--cell-size:--spacing(9)]"
           />
-          <p className="border-t px-3 py-2 text-xs text-muted-foreground">
-            {draft?.from ? 'Pilih tanggal akhir' : 'Pilih tanggal awal'}
+          <p
+            className={cn(
+              'border-t px-3 py-2 text-xs',
+              tooLong ? 'text-destructive' : 'text-muted-foreground',
+            )}
+            role={tooLong ? 'alert' : undefined}
+          >
+            {tooLong
+              ? `Rentang maksimal ${maxDays} hari — pilih tanggal akhir yang lebih dekat`
+              : draft?.from
+                ? 'Pilih tanggal akhir'
+                : 'Pilih tanggal awal'}
+            {maxDays && !tooLong ? ` (maks. ${maxDays} hari)` : ''}
           </p>
         </PopoverContent>
       </Popover>

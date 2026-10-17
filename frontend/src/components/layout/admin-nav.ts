@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { Role } from '@/types';
 
-/** Kunci angka badge di menu (diisi data nyata di FE-09: jumlah izin PENDING). */
+/** Kunci angka badge di menu (`pendingLeaves` = jumlah izin PENDING, diisi AdminShell). */
 export type AdminNavBadgeKey = 'pendingLeaves';
 
 export interface AdminNavItem {

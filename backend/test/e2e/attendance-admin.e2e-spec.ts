@@ -419,6 +419,28 @@ describe('Attendance admin & recalculate (e2e)', () => {
             workMinutes: 545,
           },
         });
+
+        // Detail memuat riwayat koreksi (terbaru dulu) — terlihat juga oleh ADMIN.
+        const detail = await as(adminToken).get(`/api/v1/attendance/${manualId}`).expect(200);
+        const corrections = detail.body.data.corrections as {
+          action: string;
+          reason: string | null;
+          actor: { name: string } | null;
+          before: Record<string, unknown> | null;
+          after: Record<string, unknown> | null;
+        }[];
+        expect(corrections.map((item) => item.action)).toEqual([
+          'ATTENDANCE_CORRECTED',
+          'ATTENDANCE_MANUAL_CREATED',
+        ]);
+        expect(corrections[0]).toMatchObject({
+          reason: 'Sesuai rekaman CCTV lobi utama',
+          before: { status: 'LATE' },
+          after: { status: 'PRESENT' },
+        });
+        expect(corrections[0]?.actor?.name).toEqual(expect.any(String));
+        expect(corrections[1]?.before).toBeNull();
+        expect(detail.body.data.shiftSnapshot).toMatchObject({ startTime: expect.any(String) });
       });
 
       it('hanya sisi yang diubah menjadi MANUAL; metrik dari shiftSnapshot', async () => {

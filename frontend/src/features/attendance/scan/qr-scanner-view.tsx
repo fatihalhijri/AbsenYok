@@ -103,6 +103,9 @@ export function QrScannerView({
   const [torchOn, setTorchOn] = useState(false);
   const scannerRef = useRef<IScannerHandle>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  /** Penanda instance kamera (efek di bawah) & elemen video yang sedang dipakai. */
+  const generationRef = useRef(0);
+  const activeVideoRef = useRef<HTMLVideoElement | null>(null);
   const rejectedRef = useRef<{ value: string; at: number } | null>(null);
   const cameraStateRef = useRef(onCameraState);
   useEffect(() => {
@@ -125,15 +128,27 @@ export function QrScannerView({
    */
   useEffect(() => {
     if (!visible) return;
+    const generation = ++generationRef.current;
     const video = scannerRef.current?.getVideoElement() ?? null;
-    const release = () => {
-      const source = video?.srcObject;
-      stopStream(source && 'getTracks' in source ? source : null);
-      stopStream(streamRef.current);
-    };
+    activeVideoRef.current = video;
     return () => {
-      release();
+      // Hanya stream milik instance yang dilepas — bukan `streamRef` yang nanti diisi instance baru.
+      const owned = streamRef.current;
       streamRef.current = null;
+      if (activeVideoRef.current === video) activeVideoRef.current = null;
+      const release = () => {
+        // Instance baru memakai elemen video yang sama (remount / StrictMode) → stream di elemen
+        // itu milik instance baru dan tidak boleh ikut dimatikan oleh retry yang tertunda.
+        // Sengaja membaca nilai TERBARU saat retry berjalan (bukan nilai saat efek dipasang).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        const reused = generationRef.current !== generation && activeVideoRef.current === video;
+        if (!reused) {
+          const source = video?.srcObject;
+          stopStream(source && 'getTracks' in source ? source : null);
+        }
+        stopStream(owned);
+      };
+      release();
       RELEASE_RETRY_MS.forEach((ms) => setTimeout(release, ms));
     };
   }, [visible, deviceId]);

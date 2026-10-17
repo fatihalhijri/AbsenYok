@@ -229,6 +229,35 @@ first-party dan tidak perlu CORS. Tujuan rewrite ditetapkan saat **build** — p
 - **Tipe API**: `npm run gen:api` memakai `--default-non-nullable false` (field ber-default di DTO
   update tetap opsional).
 
+## Absensi, izin/cuti, laporan & scan petugas (FE-09)
+
+- **Absensi `/admin/attendance`**: default hari ini (membaca `?dateFrom&dateTo&status` dari tautan
+  dashboard), rentang maks. 92 hari (`DateRangePicker maxDays`). Klik baris → Sheet detail (peta
+  titik scan masuk/pulang/gagal vs radius lokasi, log scan hari itu, riwayat koreksi dari audit log).
+  **Koreksi**: alasan wajib ≥ 10 karakter; preview hitung ulang di klien
+  (`features/attendance/admin/correction.ts`) meniru `computeMetrics`/`assertTimes` backend dan
+  memakai `shiftSnapshot` record; hanya field yang berubah yang dikirim (ISO berzona, mis.
+  `…T07:55:00+07:00`). **Tambah Manual** memakai `UserCombobox` (pencarian server). "Export Hari Ini"
+  → `/reports/daily/export` (XLSX/PDF).
+- **Izin & Cuti `/admin/leave-requests`**: tab Menunggu (badge, sama dengan badge menu & dashboard —
+  satu query bersama) / Disetujui / Ditolak / Semua; lampiran diunduh sebagai Blob bertoken (gambar →
+  dialog, PDF → tab baru). Setujui (catatan opsional) / Tolak (alasan wajib ≥ 5). **Setujui massal**:
+  `features/leave/admin/review.ts` — optimistic di semua daftar admin, request paralel maks. 4, hanya
+  yang gagal di-rollback.
+- **Rekap & Export `/admin/reports`**: tabel per karyawan (sort klien per kolom, baris total —
+  persentase gabungan, bukan rata-rata persen), Export Excel/PDF dengan nama file dari
+  `Content-Disposition`, grafik batang kehadiran per departemen (satu seri `--chart-present`, label
+  nilai, tampilan tabel).
+- **Log Scan `/admin/scan-logs`**: default hanya gagal; lencana "Perlu perhatian" untuk karyawan
+  dengan ≥ 3 `OUTSIDE_GEOFENCE`/`DEVICE_MISMATCH` hari ini (`features/scan-logs/suspicious.ts`).
+- **Audit Log `/admin/audit-logs`** (SUPER_ADMIN): filter aksi/aktor/entitas/tanggal; baris di-expand
+  → diff sebelum/sesudah yang mudah dibaca (`features/audit-logs/diff.ts`).
+- **Scan QR Personal `/admin/scan-personal`**: memakai ulang `QrScannerView` + `usePreciseLocation`;
+  hanya token `AY1.P.` yang dikirim; **scan beruntun** aktif lagi 2 dtk setelah hasil
+  (`usePersonalScan`), token yang sama diabaikan 90 dtk, token gagal dicoba ulang otomatis setelah
+  8 dtk (atau langsung lewat "Scan ulang"); hasil memakai `ScanResultSheet variant="compact"`
+  (panel bawah non-modal) + daftar hasil sesi.
+
 ## Catatan
 
 - **Form** memakai komponen shadcn `field` + `Controller` dari React Hook Form + zod (pola resmi

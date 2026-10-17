@@ -107,7 +107,29 @@ export type AttendanceDetail = AttendanceView &
   > & {
     shiftSnapshot: DetailRow['shiftSnapshot'];
     scanLogs: ScanLogView[];
+    corrections: CorrectionView[];
   };
+
+/** Riwayat koreksi/input manual dari audit log (terbaru dulu). */
+export interface CorrectionView {
+  id: string;
+  action: 'ATTENDANCE_CORRECTED' | 'ATTENDANCE_MANUAL_CREATED';
+  createdAt: Date;
+  actor: { id: string; name: string } | null;
+  reason: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+}
+
+const CORRECTION_ACTIONS = [
+  AuditAction.ATTENDANCE_CORRECTED,
+  AuditAction.ATTENDANCE_MANUAL_CREATED,
+] as const;
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 interface Metrics {
   lateMinutes: number;
@@ -186,6 +208,18 @@ export class AttendanceAdminService {
       orderBy: { createdAt: 'asc' },
       select: SCAN_LOG_SELECT,
     });
+    const audits = await this.prisma.auditLog.findMany({
+      where: { entity: 'Attendance', entityId: id, action: { in: [...CORRECTION_ACTIONS] } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        action: true,
+        createdAt: true,
+        metadata: true,
+        actor: { select: { id: true, name: true } },
+      },
+    });
 
     const { userId, createdAt, updatedAt, user, scannedBy, leaveRequest, shiftSnapshot, ...base } =
       row;
@@ -199,6 +233,18 @@ export class AttendanceAdminService {
       leaveRequest,
       shiftSnapshot,
       scanLogs: logs.map(toScanLogView),
+      corrections: audits.map((audit) => {
+        const metadata = asRecord(audit.metadata);
+        return {
+          id: audit.id,
+          action: audit.action as CorrectionView['action'],
+          createdAt: audit.createdAt,
+          actor: audit.actor,
+          reason: typeof metadata?.reason === 'string' ? metadata.reason : null,
+          before: asRecord(metadata?.before),
+          after: asRecord(metadata?.after),
+        };
+      }),
     };
   }
 
