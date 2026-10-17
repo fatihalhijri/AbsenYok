@@ -39,12 +39,18 @@ export function StatCard({
       <CardContent className="flex items-start justify-between gap-4 p-5">
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          {/* Skeleton setinggi konten akhir (nilai text-3xl = 36 px, hint text-xs = 16 px) agar
+              kartu tidak membesar saat data tiba (layout shift). */}
           {loading ? (
-            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-9 w-20" />
           ) : (
             <p className="text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
           )}
-          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+          {loading ? (
+            <Skeleton className="h-4 w-24" />
+          ) : hint ? (
+            <p className="text-xs text-muted-foreground">{hint}</p>
+          ) : null}
         </div>
         {Icon ? (
           <div

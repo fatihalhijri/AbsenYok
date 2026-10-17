@@ -14,7 +14,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { z } from 'zod';
+import { z } from '@/lib/zod';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,

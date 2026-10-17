@@ -1,10 +1,10 @@
 import type { NextConfig } from 'next';
 import packageJson from './package.json';
-import { env, getServerEnv } from './src/lib/env';
+import { getServerEnv, validateClientEnv } from './src/lib/env.server';
 
 // Validasi env saat `next dev`/`next build` dimuat — konfigurasi salah langsung gagal dengan jelas.
-// `env` (publik) juga dievaluasi di sini agar kesalahannya tidak baru muncul saat render.
-void env;
+// Env publik divalidasi di sini saja (lib/env.ts di browser tidak memuat Zod).
+validateClientEnv();
 const { BACKEND_INTERNAL_URL } = getServerEnv();
 const isDev = process.env.NODE_ENV !== 'production';
 

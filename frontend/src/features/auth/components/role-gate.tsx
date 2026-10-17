@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useDeferredValue, useEffect } from 'react';
 import { ErrorState } from '@/components/shared/error-state';
 import { useAuthStore } from '@/stores/auth-store';
 import type { Role } from '@/types';
@@ -30,6 +30,10 @@ export function RoleGate({ allow, children }: RoleGateProps) {
   const signedOut = useAuthStore((state) => state.signedOut);
 
   const allowed = status === 'authenticated' && role !== undefined && allow.includes(role);
+  // Status sesi dari Zustand memicu render sinkron. Seluruh area (shell + halaman) dirender lewat
+  // nilai tertunda → render latar yang bisa dicicil React (tanpa satu long task besar); saat akses
+  // dicabut, konten langsung disembunyikan (tidak menunggu nilai tertunda).
+  const showContent = useDeferredValue(allowed) && allowed;
   const search = searchParams.toString();
 
   useEffect(() => {
@@ -54,8 +58,10 @@ export function RoleGate({ allow, children }: RoleGateProps) {
       </div>
     );
   }
-  if (!allowed) {
-    return <SplashScreen message={status === 'authenticated' ? 'Mengalihkan…' : undefined} />;
+  if (!showContent) {
+    return (
+      <SplashScreen message={status === 'authenticated' && !allowed ? 'Mengalihkan…' : undefined} />
+    );
   }
   return children;
 }
