@@ -18,7 +18,8 @@ export function LeaveCard({
   onCancel,
 }: {
   leave: LeaveRequest;
-  onCancel: (leave: LeaveRequest) => void;
+  /** Tidak diisi (mis. tampilan admin) → tombol Batalkan disembunyikan. */
+  onCancel?: (leave: LeaveRequest) => void;
 }) {
   const meta = LEAVE_TYPE_META[leave.type];
   const Icon = meta.icon;
@@ -63,10 +64,10 @@ export function LeaveCard({
         </p>
       ) : null}
 
-      {leave.hasAttachment || leave.status === 'PENDING' ? (
+      {leave.hasAttachment || (onCancel && leave.status === 'PENDING') ? (
         <div className="flex flex-wrap gap-2">
           {leave.hasAttachment ? <AttachmentButton id={leave.id} /> : null}
-          {leave.status === 'PENDING' ? (
+          {onCancel && leave.status === 'PENDING' ? (
             <Button
               variant="outline"
               className="min-h-11 text-destructive hover:text-destructive"
